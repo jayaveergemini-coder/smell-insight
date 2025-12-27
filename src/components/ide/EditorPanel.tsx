@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, FileCode, Lock, Monitor, Server } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { X, FileCode, Monitor, Server } from 'lucide-react';
 
 interface EditorTab {
   id: string;
@@ -14,6 +14,7 @@ interface EditorPanelProps {
   onTabChange: (id: string) => void;
   onTabClose: (id: string) => void;
   getFileContent: (path: string) => string | null;
+  onContentChange?: (path: string, content: string) => void;
   isAnalyzing: boolean;
   analysisStep: string | null;
   analysisType: 'frontend' | 'backend' | 'full';
@@ -25,13 +26,25 @@ export function EditorPanel({
   onTabChange,
   onTabClose,
   getFileContent,
+  onContentChange,
   isAnalyzing,
   analysisStep,
   analysisType,
 }: EditorPanelProps) {
   const activeTabData = tabs.find((t) => t.id === activeTab);
-  const content = activeTabData ? getFileContent(activeTabData.path) : null;
-  const lines = content?.split('\n') || [];
+  const originalContent = activeTabData ? getFileContent(activeTabData.path) : null;
+  const [editedContent, setEditedContent] = useState<Record<string, string>>({});
+
+  const content = activeTabData 
+    ? (editedContent[activeTabData.path] ?? originalContent) 
+    : null;
+
+  const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!activeTabData) return;
+    const newContent = e.target.value;
+    setEditedContent(prev => ({ ...prev, [activeTabData.path]: newContent }));
+    onContentChange?.(activeTabData.path, newContent);
+  }, [activeTabData, onContentChange]);
 
   if (tabs.length === 0) {
     return (
@@ -44,6 +57,8 @@ export function EditorPanel({
       </div>
     );
   }
+
+  const lines = content?.split('\n') || [];
 
   return (
     <div className="flex-1 bg-panel flex flex-col overflow-hidden">
@@ -68,6 +83,9 @@ export function EditorPanel({
             )}
             <span className={`text-xs ${activeTab === tab.id ? 'text-foreground' : 'text-muted-foreground'}`}>
               {tab.name}
+              {editedContent[tab.path] !== undefined && editedContent[tab.path] !== getFileContent(tab.path) && (
+                <span className="ml-1 text-warning">●</span>
+              )}
             </span>
             <button
               onClick={(e) => {
@@ -82,14 +100,6 @@ export function EditorPanel({
         ))}
       </div>
 
-      {/* Read-only Banner */}
-      <div className="flex items-center gap-2 px-4 py-1.5 bg-warning/10 border-b border-warning/20">
-        <Lock className="w-3.5 h-3.5 text-warning" />
-        <span className="text-xs text-warning">
-          Code view is read-only (analysis mode)
-        </span>
-      </div>
-
       {/* Breadcrumb */}
       {activeTabData && (
         <div className="px-4 py-2 text-xs text-muted-foreground border-b border-border bg-secondary/20">
@@ -102,22 +112,25 @@ export function EditorPanel({
         </div>
       )}
 
-      {/* Code View */}
-      <div className="flex-1 overflow-auto scrollbar-thin">
-        {content ? (
-          <div className="code-block p-4 min-h-full">
-            <table className="w-full">
-              <tbody>
-                {lines.map((line, idx) => (
-                  <tr key={idx} className="hover:bg-primary/5">
-                    <td className="pr-4 text-line-number select-none text-right w-12 align-top text-xs">
-                      {idx + 1}
-                    </td>
-                    <td className="whitespace-pre text-foreground text-sm font-mono">{line || ' '}</td>
-                  </tr>
+      {/* Code Editor */}
+      <div className="flex-1 overflow-hidden flex">
+        {content !== null ? (
+          <div className="flex-1 flex overflow-hidden">
+            {/* Line Numbers */}
+            <div className="bg-secondary/20 border-r border-border px-2 py-4 select-none overflow-hidden">
+              <div className="font-mono text-xs text-line-number text-right">
+                {lines.map((_, idx) => (
+                  <div key={idx} className="leading-6">{idx + 1}</div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
+            {/* Editable Text Area */}
+            <textarea
+              value={content}
+              onChange={handleContentChange}
+              className="flex-1 bg-transparent text-foreground font-mono text-sm p-4 resize-none outline-none leading-6 overflow-auto scrollbar-thin"
+              spellCheck={false}
+            />
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
