@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
 import { MenuBar } from '@/components/ide/MenuBar';
-import { ActionBar } from '@/components/ide/ActionBar';
 import { FileExplorer, FileNode } from '@/components/ide/FileExplorer';
 import { CodePanel } from '@/components/ide/CodePanel';
 import { AnalysisPanel } from '@/components/ide/AnalysisPanel';
@@ -415,18 +414,12 @@ This is a prototype/simulation for academic demonstration purposes.`,
         className="hidden"
       />
       
-      <MenuBar onAction={handleMenuAction} />
-      
-      <ActionBar
-        onUpload={handleUploadClick}
-        onAnalyzeFrontend={runFrontendAnalysis}
-        onAnalyzeBackend={runBackendAnalysis}
-        onRunFullAnalysis={runFullAnalysis}
-        isAnalyzing={isAnalyzing}
+      <MenuBar 
+        onAction={handleMenuAction} 
         hasProject={hasProject}
         hasFrontend={validation.hasFrontend}
         hasBackend={validation.hasBackend}
-        validationErrors={validation.errors}
+        isAnalyzing={isAnalyzing}
       />
 
       <div className="flex-1 flex overflow-hidden">
