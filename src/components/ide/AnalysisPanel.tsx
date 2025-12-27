@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   AlertTriangle,
   Code2,
@@ -14,6 +13,8 @@ import {
 
 interface AnalysisPanelProps {
   hasResults: boolean;
+  activeTab?: 'smells' | 'features' | 'classification';
+  onTabChange?: (tab: 'smells' | 'features' | 'classification') => void;
 }
 
 const codeSmells = [
@@ -76,8 +77,9 @@ function getSeverityClass(severity: 'low' | 'medium' | 'high') {
   }
 }
 
-export function AnalysisPanel({ hasResults }: AnalysisPanelProps) {
-  const [activeTab, setActiveTab] = useState<'smells' | 'features' | 'classification'>('smells');
+export function AnalysisPanel({ hasResults, activeTab: propActiveTab, onTabChange }: AnalysisPanelProps) {
+  const activeTab = propActiveTab || 'smells';
+  const setActiveTab = onTabChange || (() => {});
 
   if (!hasResults) {
     return (
