@@ -83,6 +83,18 @@ export default {
           medium: "hsl(var(--severity-medium))",
           high: "hsl(var(--severity-high))",
         },
+        syntax: {
+          keyword: "hsl(var(--syntax-keyword))",
+          string: "hsl(var(--syntax-string))",
+          number: "hsl(var(--syntax-number))",
+          comment: "hsl(var(--syntax-comment))",
+          function: "hsl(var(--syntax-function))",
+          operator: "hsl(var(--syntax-operator))",
+          bracket: "hsl(var(--syntax-bracket))",
+          property: "hsl(var(--syntax-property))",
+          type: "hsl(var(--syntax-type))",
+          tag: "hsl(var(--syntax-tag))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
