@@ -60,9 +60,11 @@ interface MenuBarProps {
   hasFrontend?: boolean;
   hasBackend?: boolean;
   isAnalyzing?: boolean;
+  showTerminal?: boolean;
+  showAnalysisPanel?: boolean;
 }
 
-export function MenuBar({ onAction, hasProject = false, hasFrontend = false, hasBackend = false, isAnalyzing = false }: MenuBarProps) {
+export function MenuBar({ onAction, hasProject = false, hasFrontend = false, hasBackend = false, isAnalyzing = false, showTerminal = true, showAnalysisPanel = true }: MenuBarProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [isMenuMode, setIsMenuMode] = useState(false);
   const menuBarRef = useRef<HTMLDivElement>(null);
@@ -108,8 +110,8 @@ export function MenuBar({ onAction, hasProject = false, hasFrontend = false, has
       label: 'View',
       items: [
         { label: 'Toggle File Explorer', icon: <PanelLeft className="w-4 h-4" />, shortcut: 'Ctrl+B', action: 'toggleExplorer' },
-        { label: 'Toggle Analysis Panel', icon: <PanelRight className="w-4 h-4" />, shortcut: 'Ctrl+J', action: 'toggleAnalysis' },
-        { label: 'Toggle Logs Panel', icon: <PanelBottom className="w-4 h-4" />, shortcut: 'Ctrl+`', action: 'toggleLogs' },
+        { label: showAnalysisPanel ? 'Hide Analysis Panel' : 'Show Analysis Panel', icon: <PanelRight className="w-4 h-4" />, shortcut: 'Ctrl+J', action: 'toggleAnalysis' },
+        { label: showTerminal ? 'Hide Terminal' : 'Show Terminal', icon: <PanelBottom className="w-4 h-4" />, shortcut: 'Ctrl+`', action: 'toggleLogs' },
         { separator: true, label: '' },
         { label: 'Zoom In', icon: <ZoomIn className="w-4 h-4" />, shortcut: 'Ctrl++', action: 'zoomIn' },
         { label: 'Zoom Out', icon: <ZoomOut className="w-4 h-4" />, shortcut: 'Ctrl+-', action: 'zoomOut' },
@@ -139,8 +141,10 @@ export function MenuBar({ onAction, hasProject = false, hasFrontend = false, has
     {
       label: 'Terminal',
       items: [
-        { label: 'Show Logs Panel', icon: <ListChecks className="w-4 h-4" />, action: 'showLogs' },
-        { label: 'Clear Logs', icon: <Trash2 className="w-4 h-4" />, action: 'clearLogs' },
+        { label: showTerminal ? 'Hide Terminal' : 'Show Terminal', icon: <PanelBottom className="w-4 h-4" />, shortcut: 'Ctrl+`', action: 'toggleLogs' },
+        { label: 'New Terminal', icon: <Play className="w-4 h-4" />, action: 'newTerminal', disabled: !showTerminal },
+        { separator: true, label: '' },
+        { label: 'Clear Logs', icon: <Trash2 className="w-4 h-4" />, action: 'clearLogs', disabled: !showTerminal },
         { separator: true, label: '' },
         { label: 'View System Status', icon: <Activity className="w-4 h-4" />, action: 'viewStatus' },
       ],
