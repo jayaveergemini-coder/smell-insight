@@ -14,6 +14,7 @@ import { MenuBar } from '@/components/ide/MenuBar';
 import { extractFolderFiles, ExtractedFile, countFilesAndFolders, ProjectValidation } from '@/lib/folderExtractor';
 import { toast } from '@/hooks/use-toast';
 import { HelpDialog } from '@/components/ide/HelpDialog';
+import { TrustDialog } from '@/components/ide/TrustDialog';
 import { Upload } from 'lucide-react';
 
 const Index = () => {
@@ -46,6 +47,9 @@ const Index = () => {
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   const [helpContent, setHelpContent] = useState({ title: '', content: '' });
 
+  // Trust dialog
+  const [trustDialogOpen, setTrustDialogOpen] = useState(false);
+
   const hasProject = files.length > 0;
 
   const addLog = useCallback((type: LogEntry['type'], message: string) => {
@@ -54,8 +58,23 @@ const Index = () => {
   }, []);
 
   const handleUploadClick = useCallback(() => {
+    setTrustDialogOpen(true);
+  }, []);
+
+  const handleTrustConfirm = useCallback(() => {
+    setTrustDialogOpen(false);
     folderInputRef.current?.click();
   }, []);
+
+  const handleTrustCancel = useCallback(() => {
+    setTrustDialogOpen(false);
+    toast({
+      title: 'Upload Cancelled',
+      description: 'You chose not to trust this application. No files were accessed.',
+      variant: 'destructive',
+    });
+    addLog('info', 'Upload cancelled - trust not granted');
+  }, [addLog]);
 
   const handleFolderChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
@@ -344,6 +363,12 @@ const Index = () => {
       </div>
 
       <HelpDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} title={helpContent.title} content={helpContent.content} />
+      <TrustDialog 
+        open={trustDialogOpen} 
+        onOpenChange={setTrustDialogOpen} 
+        onConfirm={handleTrustConfirm}
+        onCancel={handleTrustCancel}
+      />
     </div>
   );
 };
