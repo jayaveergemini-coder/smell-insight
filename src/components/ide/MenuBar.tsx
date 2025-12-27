@@ -207,7 +207,7 @@ export function MenuBar({ onAction, hasProject = false, hasFrontend = false, has
     >
       {/* App Icon & Title */}
       <div className="flex items-center gap-2 mr-4 pr-4 border-r border-border">
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg className="w-5 h-5 animate-spin-slow" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="12" cy="12" r="10" className="stroke-primary" strokeWidth="1.5" fill="none" />
           <ellipse cx="12" cy="12" rx="10" ry="4" className="stroke-primary" strokeWidth="1.5" fill="none" />
           <ellipse cx="12" cy="12" rx="10" ry="4" className="stroke-primary" strokeWidth="1.5" fill="none" transform="rotate(60 12 12)" />
