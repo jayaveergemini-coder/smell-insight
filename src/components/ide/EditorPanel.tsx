@@ -151,12 +151,12 @@ export function EditorPanel({
       {/* Code Editor */}
       <div className="flex-1 overflow-hidden flex min-h-0">
         {content !== null ? (
-          <div className="flex-1 flex overflow-hidden min-h-0">
+          <div className="flex-1 flex min-h-0 min-w-0 overflow-auto scrollbar-thin">
             {/* Line Numbers */}
             <div 
               ref={lineNumbersRef}
               aria-hidden="true"
-              className="bg-secondary/20 border-r border-border px-2 py-4 select-none overflow-hidden pointer-events-none"
+              className="bg-secondary/20 border-r border-border px-2 py-4 select-none pointer-events-none sticky left-0"
             >
               <div className="font-mono text-xs text-right">
                 {lines.map((_, idx) => (
@@ -185,8 +185,9 @@ export function EditorPanel({
               onClick={handleCursorChange}
               onFocus={handleCursorChange}
               wrap="off"
-              className="flex-1 min-w-0 min-h-0 bg-transparent text-foreground font-mono text-sm p-4 resize-none outline-none leading-6 overflow-auto scrollbar-thin"
+              className="flex-1 min-w-0 bg-transparent text-foreground font-mono text-sm p-4 resize-none outline-none leading-6"
               spellCheck={false}
+              style={{ height: `${Math.max(lines.length * 24 + 32, 100)}px` }}
             />
           </div>
         ) : (
