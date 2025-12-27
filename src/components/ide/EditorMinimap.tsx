@@ -112,14 +112,14 @@ export function EditorMinimap({ content, containerRef, currentLine, totalLines }
   return (
     <div
       ref={minimapRef}
-      className="w-[80px] bg-secondary/20 border-l border-border relative cursor-pointer select-none shrink-0"
+      className="w-[100px] bg-secondary/40 border-l border-border relative cursor-pointer select-none shrink-0 overflow-hidden"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
       {/* Viewport indicator */}
       <div
-        className="absolute left-0 right-0 bg-primary/20 border-y border-primary/30 pointer-events-none transition-all duration-75"
+        className="absolute left-0 right-0 bg-primary/30 border-y border-primary/50 pointer-events-none transition-all duration-75 z-10"
         style={{
           top: viewportTop,
           height: viewportHeight,
@@ -127,16 +127,16 @@ export function EditorMinimap({ content, containerRef, currentLine, totalLines }
       />
       
       {/* Minimap content */}
-      <div className="p-1 overflow-hidden" style={{ height: minimapHeight }}>
+      <div className="p-1" style={{ minHeight: minimapHeight }}>
         {lines.map((line, idx) => (
           <div
             key={idx}
-            className="h-[3px] mb-[0px] flex items-center overflow-hidden"
+            className="h-[4px] flex items-center"
           >
             <div
-              className="h-[2px] rounded-sm"
+              className="h-[3px] rounded-sm ml-1"
               style={{
-                width: `${Math.min(line.length * 0.8, 70)}px`,
+                width: `${Math.max(Math.min(line.length * 1, 90), line.trim() ? 4 : 0)}px`,
                 backgroundColor: getLineColor(line),
               }}
             />
@@ -146,9 +146,9 @@ export function EditorMinimap({ content, containerRef, currentLine, totalLines }
 
       {/* Current line indicator */}
       <div
-        className="absolute left-0 right-0 h-[3px] bg-primary/60 pointer-events-none"
+        className="absolute left-0 right-0 h-[4px] bg-primary pointer-events-none z-20"
         style={{
-          top: (currentLine - 1) * lineHeight + 4,
+          top: (currentLine - 1) * 4 + 4,
         }}
       />
     </div>
