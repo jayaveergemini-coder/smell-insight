@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { X, FileCode, Monitor, Server } from 'lucide-react';
 
 interface EditorTab {
@@ -8,6 +8,11 @@ interface EditorTab {
   category: 'frontend' | 'backend' | 'other';
 }
 
+interface CursorPosition {
+  line: number;
+  column: number;
+}
+
 interface EditorPanelProps {
   tabs: EditorTab[];
   activeTab: string | null;
@@ -15,6 +20,7 @@ interface EditorPanelProps {
   onTabClose: (id: string) => void;
   getFileContent: (path: string) => string | null;
   onContentChange?: (path: string, content: string) => void;
+  onCursorChange?: (position: CursorPosition) => void;
   isAnalyzing: boolean;
   analysisStep: string | null;
   analysisType: 'frontend' | 'backend' | 'full';
@@ -27,6 +33,7 @@ export function EditorPanel({
   onTabClose,
   getFileContent,
   onContentChange,
+  onCursorChange,
   isAnalyzing,
   analysisStep,
   analysisType,
@@ -34,17 +41,36 @@ export function EditorPanel({
   const activeTabData = tabs.find((t) => t.id === activeTab);
   const originalContent = activeTabData ? getFileContent(activeTabData.path) : null;
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const content = activeTabData 
     ? (editedContent[activeTabData.path] ?? originalContent) 
     : null;
+
+  const getCursorPosition = useCallback((textarea: HTMLTextAreaElement): CursorPosition => {
+    const text = textarea.value;
+    const selectionStart = textarea.selectionStart;
+    const textBeforeCursor = text.substring(0, selectionStart);
+    const lines = textBeforeCursor.split('\n');
+    const line = lines.length;
+    const column = lines[lines.length - 1].length + 1;
+    return { line, column };
+  }, []);
+
+  const handleCursorChange = useCallback(() => {
+    if (textareaRef.current) {
+      const position = getCursorPosition(textareaRef.current);
+      onCursorChange?.(position);
+    }
+  }, [getCursorPosition, onCursorChange]);
 
   const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!activeTabData) return;
     const newContent = e.target.value;
     setEditedContent(prev => ({ ...prev, [activeTabData.path]: newContent }));
     onContentChange?.(activeTabData.path, newContent);
-  }, [activeTabData, onContentChange]);
+    handleCursorChange();
+  }, [activeTabData, onContentChange, handleCursorChange]);
 
   if (tabs.length === 0) {
     return (
@@ -126,8 +152,13 @@ export function EditorPanel({
             </div>
             {/* Editable Text Area */}
             <textarea
+              ref={textareaRef}
               value={content}
               onChange={handleContentChange}
+              onKeyUp={handleCursorChange}
+              onMouseUp={handleCursorChange}
+              onClick={handleCursorChange}
+              onFocus={handleCursorChange}
               className="flex-1 bg-transparent text-foreground font-mono text-sm p-4 resize-none outline-none leading-6 overflow-auto scrollbar-thin"
               spellCheck={false}
             />
