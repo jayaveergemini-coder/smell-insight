@@ -15,6 +15,7 @@ import { extractFolderFiles, ExtractedFile, countFilesAndFolders, ProjectValidat
 import { toast } from '@/hooks/use-toast';
 import { HelpDialog } from '@/components/ide/HelpDialog';
 import { TrustDialog } from '@/components/ide/TrustDialog';
+import { StatusBar } from '@/components/ide/StatusBar';
 import { Upload, FolderUp } from 'lucide-react';
 
 const Index = () => {
@@ -569,6 +570,21 @@ const Index = () => {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+
+      {/* Status Bar */}
+      <StatusBar
+        hasProject={hasProject}
+        hasFrontend={validation.hasFrontend}
+        hasBackend={validation.hasBackend}
+        totalFiles={extractedFiles.length}
+        totalFolders={projectFolders.length}
+        currentFile={tabs.find(t => t.id === activeTab)?.name || null}
+        cursorLine={1}
+        cursorColumn={1}
+        isAnalyzing={isAnalyzing}
+        analysisStatus={analysisStatus}
+        smellCount={hasResults ? 49 : 0}
+      />
 
       <HelpDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} title={helpContent.title} content={helpContent.content} />
       <TrustDialog 
