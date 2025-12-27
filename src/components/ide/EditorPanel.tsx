@@ -144,11 +144,11 @@ export function EditorPanel({
       {/* Code Editor with Syntax Highlighting */}
       <div className="flex-1 overflow-hidden flex min-h-0">
         {content !== null ? (
-          <div className="flex-1 flex min-h-0 min-w-0 overflow-auto scrollbar-thin items-start bg-gradient-to-br from-primary/5 via-transparent to-accent/5">
+          <div className="flex-1 flex min-h-0 min-w-0 overflow-auto bg-gradient-to-br from-primary/5 via-transparent to-accent/5 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-secondary/30 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-md [&::-webkit-scrollbar-thumb]:hover:bg-muted-foreground/50 [&::-webkit-scrollbar-corner]:bg-secondary/30">
             {/* Line Numbers */}
             <div
               aria-hidden="true"
-              className="bg-secondary/40 border-r border-border px-2 py-4 select-none pointer-events-none sticky left-0 shrink-0"
+              className="bg-secondary/40 border-r border-border px-2 py-4 select-none pointer-events-none sticky left-0 top-0 shrink-0 z-10"
             >
               <div className="font-mono text-xs text-right">
                 {lines.map((_, idx) => (
