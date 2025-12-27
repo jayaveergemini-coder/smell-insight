@@ -43,7 +43,6 @@ export function EditorPanel({
   const originalContent = activeTabData ? getFileContent(activeTabData.path) : null;
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
   const [currentLine, setCurrentLine] = useState(1);
-  const [isEditing, setIsEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const content = activeTabData 
@@ -75,15 +74,6 @@ export function EditorPanel({
     onContentChange?.(activeTabData.path, newContent);
     handleCursorChange();
   }, [activeTabData, onContentChange, handleCursorChange]);
-
-  const handleFocus = useCallback(() => {
-    setIsEditing(true);
-    handleCursorChange();
-  }, [handleCursorChange]);
-
-  const handleBlur = useCallback(() => {
-    setIsEditing(false);
-  }, []);
 
   if (tabs.length === 0) {
     return (
@@ -178,13 +168,12 @@ export function EditorPanel({
 
             {/* Code Preview + Editable Layer */}
             <div className="relative w-max min-w-full">
-              <div
-                className={`pointer-events-none ${isEditing ? 'opacity-0' : 'opacity-100'}`}
-                aria-hidden="true"
-              >
+              {/* Syntax Highlighted Code - Always Visible */}
+              <div className="pointer-events-none" aria-hidden="true">
                 <SyntaxHighlightedCode content={content} filename={activeTabData?.name || ''} />
               </div>
 
+              {/* Transparent Textarea for Editing - Always on top but invisible text */}
               <textarea
                 ref={textareaRef}
                 value={content}
@@ -192,12 +181,9 @@ export function EditorPanel({
                 onKeyUp={handleCursorChange}
                 onMouseUp={handleCursorChange}
                 onClick={handleCursorChange}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
+                onFocus={handleCursorChange}
                 wrap="off"
-                className={`absolute inset-0 bg-transparent font-mono text-sm p-4 resize-none outline-none leading-6 w-full h-full ${
-                  isEditing ? 'text-foreground' : 'text-transparent caret-foreground'
-                }`}
+                className="absolute inset-0 bg-transparent font-mono text-sm p-4 resize-none outline-none leading-6 w-full h-full text-transparent caret-foreground selection:bg-primary/30"
                 spellCheck={false}
               />
             </div>
