@@ -115,6 +115,27 @@ const Index = () => {
       setActiveTab(null);
       setHasResults(false);
       setAnalysisStatus('idle');
+
+      // Auto-open a file so the editor isn't empty (you can still open others from Explorer)
+      const firstPreviewable = extracted.find((f) => {
+        if (f.isDirectory) return false;
+        const ext = f.path.split('.').pop()?.toLowerCase() ?? '';
+        const okExt = ['ts', 'tsx', 'js', 'jsx', 'json', 'md', 'txt', 'css', 'scss', 'html', 'yml', 'yaml', 'env'].includes(ext) || !ext;
+        return okExt;
+      });
+      if (firstPreviewable) {
+        const path = firstPreviewable.path.split('/').slice(1).join('/');
+        const fileName = path.split('/').pop() || path;
+        const category: EditorTab['category'] = path.toLowerCase().includes('frontend')
+          ? 'frontend'
+          : path.toLowerCase().includes('backend')
+          ? 'backend'
+          : 'other';
+
+        const firstTab: EditorTab = { id: `tab-${Date.now()}`, path, name: fileName, category };
+        setTabs([firstTab]);
+        setActiveTab(firstTab.id);
+      }
       
       // Extract project name and folder structure for terminal
       const rootName = tree[0]?.name || 'project';
