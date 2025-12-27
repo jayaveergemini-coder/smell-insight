@@ -7,14 +7,22 @@ interface EditorMinimapProps {
   totalLines: number;
 }
 
+interface HoverPreview {
+  visible: boolean;
+  lines: string[];
+  startLine: number;
+  top: number;
+}
+
 export function EditorMinimap({ content, containerRef, currentLine, totalLines }: EditorMinimapProps) {
   const minimapRef = useRef<HTMLDivElement>(null);
   const [viewportTop, setViewportTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [hoverPreview, setHoverPreview] = useState<HoverPreview>({ visible: false, lines: [], startLine: 0, top: 0 });
 
   const lines = content.split('\n');
-  const lineHeight = 3; // Height of each line in minimap (px)
+  const lineHeight = 4; // Height of each line in minimap (px)
   const minimapHeight = lines.length * lineHeight;
 
   // Update viewport indicator based on scroll position
@@ -75,8 +83,35 @@ export function EditorMinimap({ content, containerRef, currentLine, totalLines }
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isDragging) {
       handleMinimapClick(e);
+      return;
     }
-  }, [isDragging, handleMinimapClick]);
+
+    // Handle hover preview
+    const minimap = minimapRef.current;
+    if (!minimap) return;
+
+    const rect = minimap.getBoundingClientRect();
+    const hoverY = e.clientY - rect.top;
+    const hoveredLine = Math.floor((hoverY - 4) / lineHeight);
+    
+    if (hoveredLine >= 0 && hoveredLine < lines.length) {
+      const previewLinesCount = 7;
+      const startLine = Math.max(0, hoveredLine - Math.floor(previewLinesCount / 2));
+      const endLine = Math.min(lines.length, startLine + previewLinesCount);
+      const previewLines = lines.slice(startLine, endLine);
+      
+      setHoverPreview({
+        visible: true,
+        lines: previewLines,
+        startLine: startLine + 1,
+        top: Math.min(Math.max(hoverY - 60, 0), rect.height - 150),
+      });
+    }
+  }, [isDragging, handleMinimapClick, lines, lineHeight]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverPreview({ visible: false, lines: [], startLine: 0, top: 0 });
+  }, []);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -116,7 +151,34 @@ export function EditorMinimap({ content, containerRef, currentLine, totalLines }
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
     >
+      {/* Hover Preview Tooltip */}
+      {hoverPreview.visible && (
+        <div
+          className="absolute right-full mr-2 bg-popover border border-border rounded-md shadow-lg z-50 overflow-hidden pointer-events-none"
+          style={{ top: hoverPreview.top, width: '300px' }}
+        >
+          <div className="bg-secondary/50 px-2 py-1 border-b border-border">
+            <span className="text-xs text-muted-foreground font-mono">
+              Lines {hoverPreview.startLine}-{hoverPreview.startLine + hoverPreview.lines.length - 1}
+            </span>
+          </div>
+          <div className="p-2 font-mono text-xs leading-5 overflow-hidden">
+            {hoverPreview.lines.map((line, idx) => (
+              <div key={idx} className="flex">
+                <span className="text-muted-foreground w-8 shrink-0 text-right pr-2">
+                  {hoverPreview.startLine + idx}
+                </span>
+                <span className="text-foreground truncate">
+                  {line || ' '}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Viewport indicator */}
       <div
         className="absolute left-0 right-0 bg-primary/30 border-y border-primary/50 pointer-events-none transition-all duration-75 z-10"
@@ -148,7 +210,7 @@ export function EditorMinimap({ content, containerRef, currentLine, totalLines }
       <div
         className="absolute left-0 right-0 h-[4px] bg-primary pointer-events-none z-20"
         style={{
-          top: (currentLine - 1) * 4 + 4,
+          top: (currentLine - 1) * lineHeight + 4,
         }}
       />
     </div>
