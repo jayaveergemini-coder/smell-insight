@@ -1,34 +1,86 @@
-import { FileCode, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { FileCode, Loader2, CheckCircle2, Monitor, Server, Database, Brain, Sparkles } from 'lucide-react';
 
 interface CodePanelProps {
   selectedFile: string | null;
   isAnalyzing: boolean;
   analysisStep: string | null;
+  analysisType?: 'frontend' | 'backend' | 'full';
   getFileContent?: (path: string) => string | null;
 }
 
-const analysisSteps = [
-  { id: 'parsing', label: 'Parsing source files...', icon: FileCode },
-  { id: 'detecting', label: 'Detecting code smells...', icon: Loader2 },
-  { id: 'extracting', label: 'Extracting ML features...', icon: ArrowRight },
-  { id: 'complete', label: 'Analysis complete', icon: CheckCircle2 },
+const frontendSteps = [
+  { id: 'scan-frontend', label: 'Scanning frontend components...', icon: Monitor },
+  { id: 'detect-jsx', label: 'Analyzing JSX complexity...', icon: FileCode },
+  { id: 'extract-frontend', label: 'Extracting React metrics...', icon: Database },
+  { id: 'complete-frontend', label: 'Frontend analysis complete', icon: CheckCircle2 },
 ];
 
-export function CodePanel({ selectedFile, isAnalyzing, analysisStep, getFileContent }: CodePanelProps) {
+const backendSteps = [
+  { id: 'scan-backend', label: 'Scanning backend services...', icon: Server },
+  { id: 'detect-logic', label: 'Analyzing business logic...', icon: FileCode },
+  { id: 'extract-backend', label: 'Extracting API metrics...', icon: Database },
+  { id: 'complete-backend', label: 'Backend analysis complete', icon: CheckCircle2 },
+];
+
+const fullSteps = [
+  { id: 'scan-frontend', label: 'Scanning frontend components...', icon: Monitor },
+  { id: 'scan-backend', label: 'Analyzing backend services...', icon: Server },
+  { id: 'detect-smells', label: 'Detecting code smells...', icon: FileCode },
+  { id: 'extract-metrics', label: 'Extracting ML features...', icon: Database },
+  { id: 'prepare-ml', label: 'Preparing ML features...', icon: Brain },
+  { id: 'complete', label: 'Full analysis complete', icon: Sparkles },
+];
+
+export function CodePanel({ selectedFile, isAnalyzing, analysisStep, analysisType = 'full', getFileContent }: CodePanelProps) {
+  const getAnalysisSteps = () => {
+    switch (analysisType) {
+      case 'frontend':
+        return frontendSteps;
+      case 'backend':
+        return backendSteps;
+      default:
+        return fullSteps;
+    }
+  };
+
+  const getAnalysisTitle = () => {
+    switch (analysisType) {
+      case 'frontend':
+        return 'Frontend Analysis';
+      case 'backend':
+        return 'Backend Analysis';
+      default:
+        return 'Full Project Analysis';
+    }
+  };
+
+  const getAnalysisIcon = () => {
+    switch (analysisType) {
+      case 'frontend':
+        return <Monitor className="w-8 h-8 text-primary" />;
+      case 'backend':
+        return <Server className="w-8 h-8 text-success" />;
+      default:
+        return <Sparkles className="w-8 h-8 text-accent" />;
+    }
+  };
+
   if (isAnalyzing) {
+    const steps = getAnalysisSteps();
+    
     return (
       <div className="flex-1 bg-panel rounded-lg border border-border overflow-hidden flex flex-col">
         <div className="ide-panel-header">
-          <span className="text-sm font-medium">Analysis in Progress</span>
+          <span className="text-sm font-medium">{getAnalysisTitle()} in Progress</span>
         </div>
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="max-w-md w-full space-y-6">
             <div className="text-center mb-8">
               <div className="w-16 h-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                {getAnalysisIcon()}
               </div>
               <h3 className="text-lg font-semibold text-foreground">
-                Running Analysis
+                Running {getAnalysisTitle()}
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
                 Processing your project files...
@@ -36,10 +88,10 @@ export function CodePanel({ selectedFile, isAnalyzing, analysisStep, getFileCont
             </div>
 
             <div className="space-y-3">
-              {analysisSteps.map((step, idx) => {
+              {steps.map((step, idx) => {
                 const isActive = step.id === analysisStep;
-                const isComplete =
-                  analysisSteps.findIndex((s) => s.id === analysisStep) > idx;
+                const stepIndex = steps.findIndex((s) => s.id === analysisStep);
+                const isComplete = stepIndex > idx;
                 const Icon = step.icon;
 
                 return (
@@ -62,9 +114,11 @@ export function CodePanel({ selectedFile, isAnalyzing, analysisStep, getFileCont
                           : 'bg-muted text-muted-foreground'
                       }`}
                     >
-                      <Icon
-                        className={`w-4 h-4 ${isActive ? 'animate-spin' : ''}`}
-                      />
+                      {isActive ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Icon className="w-4 h-4" />
+                      )}
                     </div>
                     <span
                       className={`text-sm font-medium ${
@@ -105,8 +159,8 @@ export function CodePanel({ selectedFile, isAnalyzing, analysisStep, getFileCont
               Smell Aware Bug Classification
             </h2>
             <p className="text-muted-foreground mb-8 leading-relaxed">
-              Upload your project ZIP file to analyze code smells and predict potential
-              bug categories using machine learning.
+              Upload your React + Backend project folder to analyze code smells
+              and predict potential bug categories using machine learning.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
@@ -114,17 +168,20 @@ export function CodePanel({ selectedFile, isAnalyzing, analysisStep, getFileCont
                 {
                   step: '1',
                   title: 'Upload Project',
-                  desc: 'Upload a ZIP file containing your project',
+                  desc: 'Select your project folder containing frontend and backend',
+                  icon: <FileCode className="w-4 h-4" />,
                 },
                 {
                   step: '2',
-                  title: 'Analyze Smells',
-                  desc: 'Detect code smells and extract features',
+                  title: 'Analyze Code',
+                  desc: 'Detect smells in React components and Node.js services',
+                  icon: <Monitor className="w-4 h-4" />,
                 },
                 {
                   step: '3',
                   title: 'Classify Bugs',
-                  desc: 'Get ML-based bug predictions',
+                  desc: 'Get ML-based predictions for potential bug types',
+                  icon: <Brain className="w-4 h-4" />,
                 },
               ].map((item) => (
                 <div
@@ -134,12 +191,21 @@ export function CodePanel({ selectedFile, isAnalyzing, analysisStep, getFileCont
                   <div className="w-8 h-8 bg-primary text-primary-foreground rounded-lg flex items-center justify-center text-sm font-bold mb-3">
                     {item.step}
                   </div>
-                  <h3 className="font-medium text-foreground text-sm mb-1">
+                  <h3 className="font-medium text-foreground text-sm mb-1 flex items-center gap-2">
+                    {item.icon}
                     {item.title}
                   </h3>
                   <p className="text-xs text-muted-foreground">{item.desc}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-8 p-4 bg-secondary/30 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground">
+                <strong className="text-foreground">Expected structure:</strong> Project folder with{' '}
+                <code className="bg-secondary px-1 rounded">frontend/</code> (React) and{' '}
+                <code className="bg-secondary px-1 rounded">backend/</code> (Node.js) directories
+              </p>
             </div>
           </div>
         </div>
@@ -147,7 +213,6 @@ export function CodePanel({ selectedFile, isAnalyzing, analysisStep, getFileCont
     );
   }
 
-  // Get file content from extracted files or show placeholder
   const content = getFileContent?.(selectedFile) ?? '// No preview available for this file';
   const lines = content.split('\n');
 
