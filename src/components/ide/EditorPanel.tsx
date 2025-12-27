@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { X, FileCode, Monitor, Server } from 'lucide-react';
 import { SyntaxHighlightedCode } from './SyntaxHighlightedCode';
-import { EditorMinimap } from './EditorMinimap';
 interface EditorTab {
   id: string;
   path: string;
@@ -145,63 +144,53 @@ export function EditorPanel({
       {/* Code Editor with Syntax Highlighting */}
       <div className="flex-1 overflow-hidden flex min-h-0">
         {content !== null ? (
-          <>
-            <div 
-              ref={scrollContainerRef}
-              className="flex-1 flex min-h-0 min-w-0 overflow-auto bg-gradient-to-br from-primary/5 via-transparent to-accent/5 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-secondary/30 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-md [&::-webkit-scrollbar-thumb]:hover:bg-muted-foreground/50 [&::-webkit-scrollbar-corner]:bg-secondary/30"
+          <div 
+            ref={scrollContainerRef}
+            className="flex-1 flex min-h-0 min-w-0 overflow-auto bg-gradient-to-br from-primary/5 via-transparent to-accent/5 [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-secondary/30 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-md [&::-webkit-scrollbar-thumb]:hover:bg-muted-foreground/50 [&::-webkit-scrollbar-corner]:bg-secondary/30"
+          >
+            {/* Line Numbers */}
+            <div
+              aria-hidden="true"
+              className="bg-secondary/40 border-r border-border px-2 py-4 select-none pointer-events-none sticky left-0 top-0 shrink-0 z-10"
             >
-              {/* Line Numbers */}
-              <div
-                aria-hidden="true"
-                className="bg-secondary/40 border-r border-border px-2 py-4 select-none pointer-events-none sticky left-0 top-0 shrink-0 z-10"
-              >
-                <div className="font-mono text-xs text-right">
-                  {lines.map((_, idx) => (
-                    <div
-                      key={idx}
-                      className={`leading-6 px-1 -mx-1 ${
-                        currentLine === idx + 1
-                          ? 'text-foreground bg-primary/20 rounded-sm'
-                          : 'text-line-number'
-                      }`}
-                    >
-                      {idx + 1}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Code Preview + Editable Layer */}
-              <div className="relative w-max min-w-full">
-                {/* Syntax Highlighted Code - Always Visible */}
-                <div className="pointer-events-none" aria-hidden="true">
-                  <SyntaxHighlightedCode content={content} filename={activeTabData?.name || ''} />
-                </div>
-
-                {/* Transparent Textarea for Editing - Always on top but invisible text */}
-                <textarea
-                  ref={textareaRef}
-                  value={content}
-                  onChange={handleContentChange}
-                  onKeyUp={handleCursorChange}
-                  onMouseUp={handleCursorChange}
-                  onClick={handleCursorChange}
-                  onFocus={handleCursorChange}
-                  wrap="off"
-                  className="absolute inset-0 bg-transparent font-mono text-sm p-4 resize-none outline-none leading-6 w-full h-full text-transparent caret-foreground selection:bg-primary/30"
-                  spellCheck={false}
-                />
+              <div className="font-mono text-xs text-right">
+                {lines.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`leading-6 px-1 -mx-1 ${
+                      currentLine === idx + 1
+                        ? 'text-foreground bg-primary/20 rounded-sm'
+                        : 'text-line-number'
+                    }`}
+                  >
+                    {idx + 1}
+                  </div>
+                ))}
               </div>
             </div>
-            
-            {/* Minimap */}
-            <EditorMinimap 
-              content={content}
-              containerRef={scrollContainerRef}
-              currentLine={currentLine}
-              totalLines={lines.length}
-            />
-          </>
+
+            {/* Code Preview + Editable Layer */}
+            <div className="relative w-max min-w-full">
+              {/* Syntax Highlighted Code - Always Visible */}
+              <div className="pointer-events-none" aria-hidden="true">
+                <SyntaxHighlightedCode content={content} filename={activeTabData?.name || ''} />
+              </div>
+
+              {/* Transparent Textarea for Editing - Always on top but invisible text */}
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={handleContentChange}
+                onKeyUp={handleCursorChange}
+                onMouseUp={handleCursorChange}
+                onClick={handleCursorChange}
+                onFocus={handleCursorChange}
+                wrap="off"
+                className="absolute inset-0 bg-transparent font-mono text-sm p-4 resize-none outline-none leading-6 w-full h-full text-transparent caret-foreground selection:bg-primary/30"
+                spellCheck={false}
+              />
+            </div>
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-sm text-muted-foreground">Unable to load file content</p>
