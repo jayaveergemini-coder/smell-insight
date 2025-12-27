@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { X, FileCode, Monitor, Server } from 'lucide-react';
 
 interface EditorTab {
@@ -43,6 +43,14 @@ export function EditorPanel({
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
   const [currentLine, setCurrentLine] = useState(1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
+
+  // Sync scroll between textarea and line numbers
+  const handleScroll = useCallback(() => {
+    if (textareaRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, []);
 
   const content = activeTabData 
     ? (editedContent[activeTabData.path] ?? originalContent) 
@@ -145,7 +153,10 @@ export function EditorPanel({
         {content !== null ? (
           <div className="flex-1 flex overflow-hidden">
             {/* Line Numbers */}
-            <div className="bg-secondary/20 border-r border-border px-2 py-4 select-none overflow-hidden">
+            <div 
+              ref={lineNumbersRef}
+              className="bg-secondary/20 border-r border-border px-2 py-4 select-none overflow-hidden"
+            >
               <div className="font-mono text-xs text-right">
                 {lines.map((_, idx) => (
                   <div 
@@ -166,6 +177,7 @@ export function EditorPanel({
               ref={textareaRef}
               value={content}
               onChange={handleContentChange}
+              onScroll={handleScroll}
               onKeyUp={handleCursorChange}
               onMouseUp={handleCursorChange}
               onClick={handleCursorChange}
