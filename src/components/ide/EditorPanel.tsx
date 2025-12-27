@@ -41,6 +41,7 @@ export function EditorPanel({
   const activeTabData = tabs.find((t) => t.id === activeTab);
   const originalContent = activeTabData ? getFileContent(activeTabData.path) : null;
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
+  const [currentLine, setCurrentLine] = useState(1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const content = activeTabData 
@@ -60,6 +61,7 @@ export function EditorPanel({
   const handleCursorChange = useCallback(() => {
     if (textareaRef.current) {
       const position = getCursorPosition(textareaRef.current);
+      setCurrentLine(position.line);
       onCursorChange?.(position);
     }
   }, [getCursorPosition, onCursorChange]);
@@ -144,9 +146,18 @@ export function EditorPanel({
           <div className="flex-1 flex overflow-hidden">
             {/* Line Numbers */}
             <div className="bg-secondary/20 border-r border-border px-2 py-4 select-none overflow-hidden">
-              <div className="font-mono text-xs text-line-number text-right">
+              <div className="font-mono text-xs text-right">
                 {lines.map((_, idx) => (
-                  <div key={idx} className="leading-6">{idx + 1}</div>
+                  <div 
+                    key={idx} 
+                    className={`leading-6 px-1 -mx-1 ${
+                      currentLine === idx + 1 
+                        ? 'text-foreground bg-primary/20 rounded-sm' 
+                        : 'text-line-number'
+                    }`}
+                  >
+                    {idx + 1}
+                  </div>
                 ))}
               </div>
             </div>
