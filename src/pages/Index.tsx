@@ -341,6 +341,8 @@ const Index = () => {
         hasFrontend={validation.hasFrontend}
         hasBackend={validation.hasBackend}
         isAnalyzing={isAnalyzing}
+        showTerminal={showLogs}
+        showAnalysisPanel={showResults}
       />
 
       {/* Main Content */}
