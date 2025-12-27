@@ -126,6 +126,10 @@ export default {
           from: { width: "0%" },
           to: { width: "100%" },
         },
+        "spin-slow": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -134,6 +138,7 @@ export default {
         "slide-in-left": "slide-in-left 0.3s ease-out",
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
         "progress-bar": "progress-bar 1.5s ease-out",
+        "spin-slow": "spin-slow 8s linear infinite",
       },
       boxShadow: {
         'soft': '0 2px 8px -2px rgba(0, 0, 0, 0.08)',
