@@ -28,6 +28,7 @@ const Index = () => {
   // Editor state
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
 
   // Panel state
   const [activeView, setActiveView] = useState<ActivityView>('explorer');
@@ -528,6 +529,7 @@ const Index = () => {
                       onTabChange={setActiveTab}
                       onTabClose={handleTabClose}
                       getFileContent={getFileContent}
+                      onCursorChange={setCursorPosition}
                       isAnalyzing={isAnalyzing}
                       analysisStep={analysisStep}
                       analysisType={analysisType}
@@ -579,8 +581,8 @@ const Index = () => {
         totalFiles={extractedFiles.length}
         totalFolders={projectFolders.length}
         currentFile={tabs.find(t => t.id === activeTab)?.name || null}
-        cursorLine={1}
-        cursorColumn={1}
+        cursorLine={cursorPosition.line}
+        cursorColumn={cursorPosition.column}
         isAnalyzing={isAnalyzing}
         analysisStatus={analysisStatus}
         smellCount={hasResults ? 49 : 0}
