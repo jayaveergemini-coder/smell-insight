@@ -4,133 +4,8 @@ interface CodePanelProps {
   selectedFile: string | null;
   isAnalyzing: boolean;
   analysisStep: string | null;
+  getFileContent?: (path: string) => string | null;
 }
-
-const demoCode: Record<string, string> = {
-  'frontend/src/App.tsx': `import React, { useState, useEffect } from 'react';
-import { UserService } from './services/UserService';
-import { Dashboard } from './components/Dashboard';
-import { Sidebar } from './components/Sidebar';
-
-// Long method detected - potential code smell
-export function App() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [filters, setFilters] = useState({});
-  
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-  
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const data = await UserService.getAll();
-      setUsers(data);
-      // Complex conditional logic
-      if (data.length > 0 && filters.active) {
-        if (filters.role === 'admin') {
-          setUsers(data.filter(u => u.isAdmin));
-        } else if (filters.role === 'user') {
-          setUsers(data.filter(u => !u.isAdmin));
-        }
-      }
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  return (
-    <div className="app-container">
-      <Sidebar users={users} onSelect={setSelectedUser} />
-      <Dashboard user={selectedUser} loading={loading} />
-    </div>
-  );
-}`,
-  'backend/src/server.py': `from flask import Flask, jsonify, request
-from models import User, Project
-from routes import api_routes
-
-app = Flask(__name__)
-
-# Large class with multiple responsibilities - code smell
-class ProjectManager:
-    def __init__(self):
-        self.db = DatabaseConnection()
-        self.cache = CacheManager()
-        self.validator = DataValidator()
-        self.logger = Logger()
-    
-    def create_project(self, data):
-        # Duplicate code pattern
-        if not self.validator.validate(data):
-            self.logger.error("Validation failed")
-            return None
-        
-        project = Project(**data)
-        self.db.save(project)
-        self.cache.invalidate('projects')
-        self.logger.info(f"Created project {project.id}")
-        return project
-    
-    def update_project(self, id, data):
-        # Duplicate code pattern
-        if not self.validator.validate(data):
-            self.logger.error("Validation failed")
-            return None
-        
-        project = self.db.get(Project, id)
-        project.update(**data)
-        self.db.save(project)
-        self.cache.invalidate('projects')
-        return project
-
-if __name__ == '__main__':
-    app.run(debug=True)`,
-  'ml-engine/classifier.py': `import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from feature_extractor import extract_features
-
-class BugClassifier:
-    """
-    ML model for classifying potential bugs based on code smells
-    """
-    
-    def __init__(self, model_path=None):
-        self.scaler = StandardScaler()
-        self.model = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=10,
-            random_state=42
-        )
-        if model_path:
-            self.load_model(model_path)
-    
-    def extract_smell_features(self, code_metrics):
-        """Extract features from code smell analysis"""
-        features = [
-            code_metrics['loc'],
-            code_metrics['cyclomatic_complexity'],
-            code_metrics['long_method_count'],
-            code_metrics['duplicate_code_pct'],
-            code_metrics['large_class_count'],
-            code_metrics['deep_nesting_level']
-        ]
-        return np.array(features).reshape(1, -1)
-    
-    def predict(self, code_metrics):
-        """Predict bug category from code metrics"""
-        features = self.extract_smell_features(code_metrics)
-        features_scaled = self.scaler.transform(features)
-        prediction = self.model.predict(features_scaled)
-        confidence = self.model.predict_proba(features_scaled)
-        return prediction[0], max(confidence[0])`,
-};
 
 const analysisSteps = [
   { id: 'parsing', label: 'Parsing source files...', icon: FileCode },
@@ -139,7 +14,7 @@ const analysisSteps = [
   { id: 'complete', label: 'Analysis complete', icon: CheckCircle2 },
 ];
 
-export function CodePanel({ selectedFile, isAnalyzing, analysisStep }: CodePanelProps) {
+export function CodePanel({ selectedFile, isAnalyzing, analysisStep, getFileContent }: CodePanelProps) {
   if (isAnalyzing) {
     return (
       <div className="flex-1 bg-panel rounded-lg border border-border overflow-hidden flex flex-col">
@@ -230,7 +105,7 @@ export function CodePanel({ selectedFile, isAnalyzing, analysisStep }: CodePanel
               Smell Aware Bug Classification
             </h2>
             <p className="text-muted-foreground mb-8 leading-relaxed">
-              Upload your project to analyze code smells and predict potential
+              Upload your project ZIP file to analyze code smells and predict potential
               bug categories using machine learning.
             </p>
 
@@ -239,7 +114,7 @@ export function CodePanel({ selectedFile, isAnalyzing, analysisStep }: CodePanel
                 {
                   step: '1',
                   title: 'Upload Project',
-                  desc: 'Upload a zip file containing your project',
+                  desc: 'Upload a ZIP file containing your project',
                 },
                 {
                   step: '2',
@@ -272,8 +147,9 @@ export function CodePanel({ selectedFile, isAnalyzing, analysisStep }: CodePanel
     );
   }
 
-  const code = demoCode[selectedFile] || '// No preview available for this file';
-  const lines = code.split('\n');
+  // Get file content from extracted files or show placeholder
+  const content = getFileContent?.(selectedFile) ?? '// No preview available for this file';
+  const lines = content.split('\n');
 
   return (
     <div className="flex-1 bg-panel rounded-lg border border-border overflow-hidden flex flex-col">

@@ -7,6 +7,9 @@ import {
   FileText,
   ChevronRight,
   ChevronDown,
+  File,
+  Image,
+  FileType,
 } from 'lucide-react';
 
 interface FileNode {
@@ -20,52 +23,6 @@ interface FileExplorerProps {
   selectedFile: string | null;
   onSelectFile: (path: string) => void;
 }
-
-const demoFiles: FileNode[] = [
-  {
-    name: 'frontend',
-    type: 'folder',
-    children: [
-      {
-        name: 'src',
-        type: 'folder',
-        children: [
-          { name: 'App.tsx', type: 'file' },
-          { name: 'index.tsx', type: 'file' },
-          { name: 'utils.ts', type: 'file' },
-        ],
-      },
-      { name: 'package.json', type: 'file' },
-    ],
-  },
-  {
-    name: 'backend',
-    type: 'folder',
-    children: [
-      {
-        name: 'src',
-        type: 'folder',
-        children: [
-          { name: 'server.py', type: 'file' },
-          { name: 'routes.py', type: 'file' },
-          { name: 'models.py', type: 'file' },
-        ],
-      },
-      { name: 'requirements.txt', type: 'file' },
-    ],
-  },
-  {
-    name: 'ml-engine',
-    type: 'folder',
-    children: [
-      { name: 'classifier.py', type: 'file' },
-      { name: 'feature_extractor.py', type: 'file' },
-      { name: 'model.pkl', type: 'file' },
-    ],
-  },
-  { name: 'package.json', type: 'file' },
-  { name: 'README.md', type: 'file' },
-];
 
 function getFileIcon(name: string, isFolder: boolean, isOpen: boolean) {
   if (isFolder) {
@@ -82,6 +39,7 @@ function getFileIcon(name: string, isFolder: boolean, isOpen: boolean) {
       return <FileJson className="w-4 h-4 text-warning" />;
     case 'md':
     case 'txt':
+    case 'log':
       return <FileText className="w-4 h-4 text-muted-foreground" />;
     case 'tsx':
     case 'ts':
@@ -90,8 +48,42 @@ function getFileIcon(name: string, isFolder: boolean, isOpen: boolean) {
       return <FileCode className="w-4 h-4 text-primary" />;
     case 'py':
       return <FileCode className="w-4 h-4 text-success" />;
+    case 'css':
+    case 'scss':
+    case 'sass':
+    case 'less':
+      return <FileType className="w-4 h-4 text-accent" />;
+    case 'html':
+    case 'htm':
+      return <FileCode className="w-4 h-4 text-destructive" />;
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'svg':
+    case 'webp':
+    case 'ico':
+      return <Image className="w-4 h-4 text-accent" />;
+    case 'java':
+    case 'kt':
+    case 'go':
+    case 'rs':
+    case 'c':
+    case 'cpp':
+    case 'h':
+      return <FileCode className="w-4 h-4 text-primary" />;
+    case 'rb':
+      return <FileCode className="w-4 h-4 text-destructive" />;
+    case 'php':
+      return <FileCode className="w-4 h-4 text-accent" />;
+    case 'yml':
+    case 'yaml':
+    case 'toml':
+      return <FileText className="w-4 h-4 text-warning" />;
+    case 'lock':
+      return <File className="w-4 h-4 text-muted-foreground" />;
     default:
-      return <FileCode className="w-4 h-4 text-muted-foreground" />;
+      return <File className="w-4 h-4 text-muted-foreground" />;
   }
 }
 
@@ -108,7 +100,7 @@ function FileTreeItem({
   selectedFile: string | null;
   onSelectFile: (path: string) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(depth < 2);
+  const [isOpen, setIsOpen] = useState(depth < 1);
   const fullPath = path ? `${path}/${node.name}` : node.name;
   const isFolder = node.type === 'folder';
   const isSelected = selectedFile === fullPath;
@@ -122,7 +114,7 @@ function FileTreeItem({
   };
 
   return (
-    <div className="animate-fade-in" style={{ animationDelay: `${depth * 30}ms` }}>
+    <div className="animate-fade-in" style={{ animationDelay: `${depth * 20}ms` }}>
       <div
         className={`file-tree-item ${isSelected ? 'active' : ''}`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -160,7 +152,7 @@ function FileTreeItem({
 }
 
 export function FileExplorer({ files, selectedFile, onSelectFile }: FileExplorerProps) {
-  const displayFiles = files.length > 0 ? files : demoFiles;
+  const hasFiles = files.length > 0;
 
   return (
     <aside className="w-64 ide-sidebar flex flex-col h-full">
@@ -170,20 +162,32 @@ export function FileExplorer({ files, selectedFile, onSelectFile }: FileExplorer
         </span>
       </div>
       <div className="flex-1 overflow-y-auto py-2 scrollbar-thin">
-        {displayFiles.map((node, idx) => (
-          <FileTreeItem
-            key={idx}
-            node={node}
-            depth={0}
-            path=""
-            selectedFile={selectedFile}
-            onSelectFile={onSelectFile}
-          />
-        ))}
+        {hasFiles ? (
+          files.map((node, idx) => (
+            <FileTreeItem
+              key={idx}
+              node={node}
+              depth={0}
+              path=""
+              selectedFile={selectedFile}
+              onSelectFile={onSelectFile}
+            />
+          ))
+        ) : (
+          <div className="px-4 py-8 text-center">
+            <Folder className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
+            <p className="text-sm text-muted-foreground">
+              No project uploaded yet
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Upload a ZIP file to get started
+            </p>
+          </div>
+        )}
       </div>
       <div className="px-3 py-2 border-t border-border">
         <p className="text-xs text-muted-foreground">
-          📁 Uploaded project structure (read-only)
+          {hasFiles ? '📁 Uploaded project (read-only)' : '📦 Accepts .zip files'}
         </p>
       </div>
     </aside>
