@@ -5,7 +5,7 @@ import { FileExplorer, FileNode } from '@/components/ide/FileExplorer';
 import { CodePanel } from '@/components/ide/CodePanel';
 import { AnalysisPanel } from '@/components/ide/AnalysisPanel';
 import { LogPanel, LogEntry } from '@/components/ide/LogPanel';
-import { extractZipFile, ExtractedFile, countFilesAndFolders } from '@/lib/zipExtractor';
+import { extractFolderFiles, ExtractedFile, countFilesAndFolders, ProjectValidation } from '@/lib/folderExtractor';
 import { toast } from '@/hooks/use-toast';
 import { HelpDialog } from '@/components/ide/HelpDialog';
 
@@ -17,9 +17,11 @@ const Index = () => {
   const [hasResults, setHasResults] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState<string | null>(null);
+  const [analysisType, setAnalysisType] = useState<'frontend' | 'backend' | 'full'>('full');
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [activeTab, setActiveTab] = useState<'smells' | 'features' | 'classification'>('smells');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<'frontend' | 'backend' | 'classification'>('frontend');
+  const [validation, setValidation] = useState<ProjectValidation>({ isValid: false, hasFrontend: false, hasBackend: false, errors: [] });
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Panel visibility
   const [showExplorer, setShowExplorer] = useState(true);
@@ -39,31 +41,22 @@ const Index = () => {
     });
     setLogs((prev) => [
       ...prev,
-      { id: Date.now(), type, message, timestamp },
+      { id: Date.now() + Math.random(), type, message, timestamp },
     ]);
   }, []);
 
   const handleUploadClick = useCallback(() => {
-    fileInputRef.current?.click();
+    folderInputRef.current?.click();
   }, []);
 
-  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFolderChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
 
-    if (!file.name.endsWith('.zip')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload a ZIP file containing your project.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    addLog('info', `Uploading ${file.name} (${(file.size / 1024).toFixed(1)} KB)...`);
+    addLog('info', 'Processing uploaded folder...');
 
     try {
-      const { files: extracted, tree } = await extractZipFile(file);
+      const { files: extracted, tree, validation: projectValidation } = await extractFolderFiles(fileList);
       const counts = countFilesAndFolders(tree);
       
       setExtractedFiles(extracted);
@@ -71,66 +64,143 @@ const Index = () => {
       setHasProject(true);
       setSelectedFile(null);
       setHasResults(false);
+      setValidation(projectValidation);
       
-      addLog('success', 'Project uploaded and extracted successfully');
+      if (projectValidation.hasFrontend) {
+        addLog('success', 'Frontend folder detected');
+      }
+      if (projectValidation.hasBackend) {
+        addLog('success', 'Backend folder detected');
+      }
+      
+      addLog('success', 'Project structure loaded successfully');
       addLog('info', `Found ${counts.folders} directories, ${counts.files} files`);
       
-      toast({
-        title: 'Project uploaded',
-        description: `Extracted ${counts.files} files from ${file.name}`,
-      });
+      if (counts.frontendFiles > 0) {
+        addLog('info', `Frontend: ${counts.frontendFiles} files`);
+      }
+      if (counts.backendFiles > 0) {
+        addLog('info', `Backend: ${counts.backendFiles} files`);
+      }
+      
+      if (!projectValidation.isValid) {
+        toast({
+          title: 'Invalid project structure',
+          description: 'Please upload a valid React + Backend project structure',
+          variant: 'destructive',
+        });
+      } else if (!projectValidation.hasFrontend || !projectValidation.hasBackend) {
+        toast({
+          title: 'Partial structure detected',
+          description: `${!projectValidation.hasFrontend ? 'Frontend folder missing. ' : ''}${!projectValidation.hasBackend ? 'Backend folder missing.' : ''}`,
+          variant: 'default',
+        });
+      } else {
+        toast({
+          title: 'Project uploaded',
+          description: `Loaded ${counts.files} files from project folder`,
+        });
+      }
     } catch (error) {
-      addLog('success', 'Failed to extract ZIP file');
+      addLog('info', 'Failed to process folder');
       toast({
-        title: 'Extraction failed',
-        description: 'Could not extract the ZIP file. Please ensure it is a valid archive.',
+        title: 'Upload failed',
+        description: 'Could not process the folder. Please try again.',
         variant: 'destructive',
       });
     }
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (folderInputRef.current) {
+      folderInputRef.current.value = '';
     }
   }, [addLog]);
 
   const getFileContent = useCallback((path: string): string | null => {
-    const file = extractedFiles.find(f => f.path === path || f.path === path + '/');
+    const file = extractedFiles.find(f => {
+      const filePath = f.path.split('/').slice(1).join('/');
+      return filePath === path || f.path.endsWith('/' + path);
+    });
     return file?.content ?? null;
   }, [extractedFiles]);
 
-  const runAnalysis = useCallback(async () => {
+  const runFrontendAnalysis = useCallback(async () => {
     setIsAnalyzing(true);
+    setAnalysisType('frontend');
     setHasResults(false);
     
-    const steps = [
-      { id: 'parsing', log: 'Parsing source files...' },
-      { id: 'detecting', log: 'Detecting code smells...' },
-      { id: 'extracting', log: 'Extracting ML features...' },
-      { id: 'complete', log: 'Static analysis completed' },
-    ];
-
+    const steps = ['scan-frontend', 'detect-jsx', 'extract-frontend', 'complete-frontend'];
+    
     for (const step of steps) {
-      setAnalysisStep(step.id);
-      addLog(step.id === 'complete' ? 'success' : 'info', step.log);
-      await new Promise((r) => setTimeout(r, 1200));
+      setAnalysisStep(step);
+      addLog(step === 'complete-frontend' ? 'success' : 'info', 
+        step === 'scan-frontend' ? 'Scanning frontend components...' :
+        step === 'detect-jsx' ? 'Analyzing JSX complexity...' :
+        step === 'extract-frontend' ? 'Extracting React metrics...' :
+        'Frontend analysis completed'
+      );
+      await new Promise((r) => setTimeout(r, 1000));
     }
 
     setIsAnalyzing(false);
     setAnalysisStep(null);
     setHasResults(true);
-    addLog('success', 'Code smells detected: 27 issues found');
+    setActiveTab('frontend');
+    addLog('success', 'Frontend code smells detected: 29 issues found');
   }, [addLog]);
 
-  const runBugClassification = useCallback(async () => {
-    if (!hasResults) {
-      await runAnalysis();
-    }
+  const runBackendAnalysis = useCallback(async () => {
+    setIsAnalyzing(true);
+    setAnalysisType('backend');
+    setHasResults(false);
     
-    addLog('info', 'Running ML classification model...');
-    await new Promise((r) => setTimeout(r, 1500));
+    const steps = ['scan-backend', 'detect-logic', 'extract-backend', 'complete-backend'];
+    
+    for (const step of steps) {
+      setAnalysisStep(step);
+      addLog(step === 'complete-backend' ? 'success' : 'info', 
+        step === 'scan-backend' ? 'Scanning backend services...' :
+        step === 'detect-logic' ? 'Analyzing business logic...' :
+        step === 'extract-backend' ? 'Extracting API metrics...' :
+        'Backend analysis completed'
+      );
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+
+    setIsAnalyzing(false);
+    setAnalysisStep(null);
+    setHasResults(true);
+    setActiveTab('backend');
+    addLog('success', 'Backend code smells detected: 20 issues found');
+  }, [addLog]);
+
+  const runFullAnalysis = useCallback(async () => {
+    setIsAnalyzing(true);
+    setAnalysisType('full');
+    setHasResults(false);
+    
+    const steps = ['scan-frontend', 'scan-backend', 'detect-smells', 'extract-metrics', 'prepare-ml', 'complete'];
+    
+    for (const step of steps) {
+      setAnalysisStep(step);
+      addLog(step === 'complete' ? 'success' : 'info', 
+        step === 'scan-frontend' ? 'Scanning frontend components...' :
+        step === 'scan-backend' ? 'Analyzing backend services...' :
+        step === 'detect-smells' ? 'Detecting code smells...' :
+        step === 'extract-metrics' ? 'Extracting ML features...' :
+        step === 'prepare-ml' ? 'Preparing ML features...' :
+        'Full analysis completed'
+      );
+      await new Promise((r) => setTimeout(r, 900));
+    }
+
+    setIsAnalyzing(false);
+    setAnalysisStep(null);
+    setHasResults(true);
+    setActiveTab('classification');
+    addLog('success', 'Total code smells detected: 49 issues');
     addLog('success', 'Bug classified successfully');
-    addLog('info', 'Predicted: Logic Error (87.3% confidence)');
-  }, [hasResults, runAnalysis, addLog]);
+    addLog('info', 'Predicted: State Management Error (84.7% confidence)');
+  }, [addLog]);
 
   const closeProject = useCallback(() => {
     setFiles([]);
@@ -138,6 +208,7 @@ const Index = () => {
     setSelectedFile(null);
     setHasProject(false);
     setHasResults(false);
+    setValidation({ isValid: false, hasFrontend: false, hasBackend: false, errors: [] });
     setLogs([]);
     addLog('info', 'Project closed');
   }, [addLog]);
@@ -175,23 +246,23 @@ const Index = () => {
         setShowLogs(prev => !prev);
         break;
       case 'goSmells':
-        setActiveTab('smells');
+        setActiveTab('frontend');
         break;
       case 'goFeatures':
-        setActiveTab('features');
+        setActiveTab('backend');
         break;
       case 'goClassification':
         setActiveTab('classification');
         break;
       case 'runSmells':
+        runFrontendAnalysis();
+        break;
       case 'runFeatures':
-        runAnalysis();
+        runBackendAnalysis();
         break;
       case 'runClassification':
-        runBugClassification();
-        break;
       case 'runPipeline':
-        runAnalysis().then(() => runBugClassification());
+        runFullAnalysis();
         break;
       case 'showLogs':
         setShowLogs(true);
@@ -204,19 +275,17 @@ const Index = () => {
           title: 'Project Overview',
           content: `# Smell Aware Bug Classification
 
-This system demonstrates how code smells can be used to predict and classify potential bugs in software projects using machine learning.
+This system demonstrates how code smells in both frontend (React) and backend (Node.js) can be used to predict and classify potential bugs using machine learning.
 
 ## Key Features
-- **Code Smell Detection**: Identifies common code quality issues
-- **Feature Extraction**: Converts code metrics into ML-ready features
-- **Bug Classification**: Predicts bug categories using trained models
+- **Folder-Based Upload**: Upload entire React + Backend projects
+- **Separate Analysis**: Analyze frontend and backend independently
+- **ML Classification**: Predict bug categories using trained models
 
-## Workflow
-1. Upload a project (ZIP file)
-2. Run code smell analysis
-3. Generate feature dataset
-4. Execute ML classification
-5. Review results and reports`,
+## Project Structure
+The system expects:
+- \`frontend/\` - React application (components, hooks, etc.)
+- \`backend/\` - Node.js/Express API (routes, controllers, etc.)`,
         });
         setHelpDialogOpen(true);
         break;
@@ -227,23 +296,23 @@ This system demonstrates how code smells can be used to predict and classify pot
 
 ## Analysis Pipeline
 
-### Step 1: Static Analysis
-The system parses source code files and performs static analysis to detect code smells such as:
-- Long Methods
-- Large Classes
-- Duplicate Code
-- Complex Conditionals
+### Frontend Analysis
+- Scans React components for:
+  - Large Component smell
+  - High JSX Complexity
+  - Duplicate UI Logic
+  - Missing PropTypes
 
-### Step 2: Feature Extraction
-Detected smells are converted into numerical features:
-- Lines of Code (LOC)
-- Cyclomatic Complexity
-- Nesting Depth
-- Duplication Percentage
+### Backend Analysis
+- Analyzes Node.js services for:
+  - Long Methods
+  - High Cyclomatic Complexity
+  - Duplicate Business Logic
+  - Large Controllers
 
-### Step 3: ML Classification
-Features are fed into a trained Random Forest classifier that predicts:
-- Bug Category (Logic Error, Null Reference, etc.)
+### ML Classification
+Combined features from both analyses are used to predict:
+- Bug Category
 - Confidence Score
 - Risk Level`,
         });
@@ -254,24 +323,28 @@ Features are fed into a trained Random Forest classifier that predicts:
           title: 'Technology Stack',
           content: `# Technologies Used
 
-## Frontend
-- **React 18** - UI Framework
-- **TypeScript** - Type Safety
-- **Tailwind CSS** - Styling
-- **Lucide Icons** - Icon Library
+## Frontend Interface
+- **React 18** with TypeScript
+- **Tailwind CSS** for styling
+- **Lucide Icons**
 
-## Analysis Engine
-- **JSZip** - ZIP File Processing
-- **Static Analysis** - Code Parsing
+## Analysis
+- **Static Analysis** for code parsing
+- **Folder Upload API** for project loading
 
-## Machine Learning (Conceptual)
-- **Python / scikit-learn** - Model Training
-- **Random Forest** - Classification Algorithm
-- **Feature Engineering** - Smell-based metrics
-
-## Design
-- **VS Code-inspired** - IDE-like interface
-- **Shadcn/ui** - Component Library`,
+## Expected Project Structure
+\`\`\`
+project/
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   └── package.json
+├── backend/
+│   ├── routes/
+│   ├── controllers/
+│   └── server.js
+└── README.md
+\`\`\``,
         });
         setHelpDialogOpen(true);
         break;
@@ -280,35 +353,25 @@ Features are fed into a trained Random Forest classifier that predicts:
           title: 'ML Model Explanation',
           content: `# Machine Learning Model
 
-## Algorithm: Random Forest Classifier
+## Features from Frontend
+- Component Line Count
+- JSX Nesting Depth
+- Props Complexity
+- State Usage Patterns
 
-### Why Random Forest?
-- Handles high-dimensional feature spaces
-- Robust to overfitting
-- Provides feature importance rankings
-- Works well with imbalanced datasets
-
-## Features Used
-| Feature | Description |
-|---------|-------------|
-| LOC | Lines of Code |
-| CC | Cyclomatic Complexity |
-| LMC | Long Method Count |
-| DCP | Duplicate Code Percentage |
-| LCC | Large Class Count |
-| DNL | Deep Nesting Level |
+## Features from Backend
+- Method Length
+- Cyclomatic Complexity
+- API Route Count
+- Error Handling Coverage
 
 ## Output Classes
-1. Logic Error
-2. Null Reference
-3. Resource Leak
-4. Concurrency Issue
+1. State Management Error
+2. API Integration Bug
+3. Logic Error
+4. Null Reference
 
-## Model Performance
-- Accuracy: 87.3%
-- Precision: 0.85
-- Recall: 0.82
-- F1-Score: 0.83`,
+## Model Accuracy: 84.7%`,
         });
         setHelpDialogOpen(true);
         break;
@@ -321,38 +384,34 @@ Features are fed into a trained Random Forest classifier that predicts:
 **Smell Aware Bug Classification Using Machine Learning**
 
 ## Objective
-To develop a system that leverages code smell detection and machine learning to predict potential bug categories in software projects.
+Develop a system that analyzes React + Node.js projects to detect code smells and predict potential bug categories.
 
 ## Scope
-- Web-based IDE interface for project analysis
-- Static code analysis for smell detection
+- Web-based IDE interface
+- Separate frontend/backend analysis
 - ML-based bug classification
-- Comprehensive reporting
-
-## Academic Context
-This project demonstrates:
-- Software Engineering principles
-- Machine Learning applications
-- Full-stack development skills
-- Research methodology
+- Academic demonstration
 
 ## Note
-This is a prototype/simulation for academic demonstration purposes. The ML model predictions shown are illustrative.`,
+This is a prototype/simulation for academic demonstration purposes.`,
         });
         setHelpDialogOpen(true);
         break;
       default:
         toast({ title: 'Action', description: `${action} triggered (simulation)` });
     }
-  }, [handleUploadClick, closeProject, addLog, runAnalysis, runBugClassification]);
+  }, [handleUploadClick, closeProject, addLog, runFrontendAnalysis, runBackendAnalysis, runFullAnalysis]);
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <input
-        ref={fileInputRef}
+        ref={folderInputRef}
         type="file"
-        accept=".zip"
-        onChange={handleFileChange}
+        // @ts-ignore - webkitdirectory is not in React types
+        webkitdirectory=""
+        directory=""
+        multiple
+        onChange={handleFolderChange}
         className="hidden"
       />
       
@@ -360,10 +419,14 @@ This is a prototype/simulation for academic demonstration purposes. The ML model
       
       <ActionBar
         onUpload={handleUploadClick}
-        onRunSmellAnalysis={runAnalysis}
-        onRunBugClassification={runBugClassification}
+        onAnalyzeFrontend={runFrontendAnalysis}
+        onAnalyzeBackend={runBackendAnalysis}
+        onRunFullAnalysis={runFullAnalysis}
         isAnalyzing={isAnalyzing}
         hasProject={hasProject}
+        hasFrontend={validation.hasFrontend}
+        hasBackend={validation.hasBackend}
+        validationErrors={validation.errors}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -372,6 +435,8 @@ This is a prototype/simulation for academic demonstration purposes. The ML model
             files={files}
             selectedFile={selectedFile}
             onSelectFile={setSelectedFile}
+            hasFrontend={validation.hasFrontend}
+            hasBackend={validation.hasBackend}
           />
         )}
 
@@ -381,6 +446,7 @@ This is a prototype/simulation for academic demonstration purposes. The ML model
               selectedFile={selectedFile}
               isAnalyzing={isAnalyzing}
               analysisStep={analysisStep}
+              analysisType={analysisType}
               getFileContent={getFileContent}
             />
             {showAnalysis && (
@@ -388,6 +454,8 @@ This is a prototype/simulation for academic demonstration purposes. The ML model
                 hasResults={hasResults} 
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
+                hasFrontend={validation.hasFrontend}
+                hasBackend={validation.hasBackend}
               />
             )}
           </div>
