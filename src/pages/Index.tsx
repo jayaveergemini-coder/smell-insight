@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ActivityBar, ActivityView } from '@/components/ide/ActivityBar';
 import { FileExplorer, FileNode } from '@/components/ide/FileExplorer';
 import { SearchPanel } from '@/components/ide/SearchPanel';
@@ -214,99 +215,119 @@ const Index = () => {
         {/* Activity Bar */}
         <ActivityBar activeView={activeView} onViewChange={setActiveView} />
 
-        {/* Side Panel */}
-        <aside className="w-64 bg-sidebar-bg border-r border-border flex flex-col shrink-0">
-          <div className="p-3 border-b border-border">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {activeView === 'explorer' && 'Project Explorer'}
-              {activeView === 'search' && 'Search'}
-              {activeView === 'smells' && 'Code Smells'}
-              {activeView === 'extensions' && 'Extensions'}
-              {activeView === 'settings' && 'Settings'}
-            </span>
-          </div>
+        {/* Resizable Panels */}
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          {/* Side Panel - Resizable */}
+          <ResizablePanel defaultSize={18} minSize={12} maxSize={35}>
+            <aside className="h-full bg-sidebar-bg border-r border-border flex flex-col">
+              <div className="p-3 border-b border-border">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {activeView === 'explorer' && 'Project Explorer'}
+                  {activeView === 'search' && 'Search'}
+                  {activeView === 'smells' && 'Code Smells'}
+                  {activeView === 'extensions' && 'Extensions'}
+                  {activeView === 'settings' && 'Settings'}
+                </span>
+              </div>
 
-          {activeView === 'explorer' && (
-            <>
-              {hasProject ? (
-                <FileExplorer
-                  files={files}
-                  selectedFile={tabs.find(t => t.id === activeTab)?.path || null}
-                  onSelectFile={handleFileSelect}
-                  hasFrontend={validation.hasFrontend}
-                  hasBackend={validation.hasBackend}
-                />
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-6">
-                  <Upload className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                  <p className="text-sm font-medium text-foreground mb-2">No project loaded</p>
-                  <p className="text-xs text-muted-foreground text-center mb-4">
-                    Upload a React + Backend project folder
-                  </p>
-                  <button
-                    onClick={handleUploadClick}
-                    className="px-4 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                  >
-                    Upload Project
-                  </button>
-                </div>
+              {activeView === 'explorer' && (
+                <>
+                  {hasProject ? (
+                    <FileExplorer
+                      files={files}
+                      selectedFile={tabs.find(t => t.id === activeTab)?.path || null}
+                      onSelectFile={handleFileSelect}
+                      hasFrontend={validation.hasFrontend}
+                      hasBackend={validation.hasBackend}
+                    />
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center p-6">
+                      <Upload className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                      <p className="text-sm font-medium text-foreground mb-2">No project loaded</p>
+                      <p className="text-xs text-muted-foreground text-center mb-4">
+                        Upload a React + Backend project folder
+                      </p>
+                      <button
+                        onClick={handleUploadClick}
+                        className="px-4 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                      >
+                        Upload Project
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
-          {activeView === 'search' && <SearchPanel onResultClick={handleFileSelect} />}
-          {activeView === 'smells' && <SmellsPanel hasResults={hasResults} />}
-          {activeView === 'extensions' && <ExtensionsPanel />}
-          {activeView === 'settings' && (
-            <SettingsPanel
-              showLogs={showLogs}
-              showAnalysis={showResults}
-              onToggleLogs={() => setShowLogs(prev => !prev)}
-              onToggleAnalysis={() => setShowResults(prev => !prev)}
-              onResetLayout={resetLayout}
-            />
-          )}
-        </aside>
+              {activeView === 'search' && <SearchPanel onResultClick={handleFileSelect} />}
+              {activeView === 'smells' && <SmellsPanel hasResults={hasResults} />}
+              {activeView === 'extensions' && <ExtensionsPanel />}
+              {activeView === 'settings' && (
+                <SettingsPanel
+                  showLogs={showLogs}
+                  showAnalysis={showResults}
+                  onToggleLogs={() => setShowLogs(prev => !prev)}
+                  onToggleAnalysis={() => setShowResults(prev => !prev)}
+                  onResetLayout={resetLayout}
+                />
+              )}
+            </aside>
+          </ResizablePanel>
 
-        {/* Editor Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <EditorToolbar
-            onAnalyzeCurrent={() => toast({ title: 'Analyze', description: 'Current file analysis (simulation)' })}
-            onAnalyzeFrontend={() => runAnalysis('frontend')}
-            onAnalyzeBackend={() => runAnalysis('backend')}
-            onRunFullAnalysis={() => runAnalysis('full')}
-            hasProject={hasProject}
-            hasFrontend={validation.hasFrontend}
-            hasBackend={validation.hasBackend}
-            hasActiveFile={activeTab !== null}
-            isAnalyzing={isAnalyzing}
-            status={analysisStatus}
-          />
-          
-          <div className="flex-1 flex overflow-hidden">
-            <EditorPanel
-              tabs={tabs}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              onTabClose={handleTabClose}
-              getFileContent={getFileContent}
-              isAnalyzing={isAnalyzing}
-              analysisStep={analysisStep}
-              analysisType={analysisType}
-            />
+          {/* Resize Handle */}
+          <ResizableHandle withHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
 
-            {/* Results Panel */}
-            {showResults && (
-              <ResultsPanel
-                hasResults={hasResults}
-                activeTab={resultsTab}
-                onTabChange={setResultsTab}
+          {/* Editor + Results Area */}
+          <ResizablePanel defaultSize={82}>
+            <div className="h-full flex flex-col overflow-hidden">
+              <EditorToolbar
+                onAnalyzeCurrent={() => toast({ title: 'Analyze', description: 'Current file analysis (simulation)' })}
+                onAnalyzeFrontend={() => runAnalysis('frontend')}
+                onAnalyzeBackend={() => runAnalysis('backend')}
+                onRunFullAnalysis={() => runAnalysis('full')}
+                hasProject={hasProject}
+                hasFrontend={validation.hasFrontend}
+                hasBackend={validation.hasBackend}
+                hasActiveFile={activeTab !== null}
+                isAnalyzing={isAnalyzing}
+                status={analysisStatus}
               />
-            )}
-          </div>
+              
+              <div className="flex-1 flex overflow-hidden">
+                <ResizablePanelGroup direction="horizontal">
+                  {/* Editor Panel */}
+                  <ResizablePanel defaultSize={showResults ? 65 : 100} minSize={30}>
+                    <EditorPanel
+                      tabs={tabs}
+                      activeTab={activeTab}
+                      onTabChange={setActiveTab}
+                      onTabClose={handleTabClose}
+                      getFileContent={getFileContent}
+                      isAnalyzing={isAnalyzing}
+                      analysisStep={analysisStep}
+                      analysisType={analysisType}
+                    />
+                  </ResizablePanel>
 
-          {/* Terminal */}
-          {showLogs && <TerminalPanel logs={logs} onClear={() => setLogs([])} />}
-        </div>
+                  {/* Results Panel - Resizable */}
+                  {showResults && (
+                    <>
+                      <ResizableHandle withHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+                      <ResizablePanel defaultSize={35} minSize={20} maxSize={50}>
+                        <ResultsPanel
+                          hasResults={hasResults}
+                          activeTab={resultsTab}
+                          onTabChange={setResultsTab}
+                        />
+                      </ResizablePanel>
+                    </>
+                  )}
+                </ResizablePanelGroup>
+              </div>
+
+              {/* Terminal */}
+              {showLogs && <TerminalPanel logs={logs} onClear={() => setLogs([])} />}
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
 
       <HelpDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} title={helpContent.title} content={helpContent.content} />

@@ -43,7 +43,7 @@ const bugCategories = [
 export function ResultsPanel({ hasResults, activeTab, onTabChange }: ResultsPanelProps) {
   if (!hasResults) {
     return (
-      <aside className="w-80 bg-panel border-l border-border flex flex-col">
+      <aside className="h-full bg-panel border-l border-border flex flex-col">
         <div className="p-3 border-b border-border">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Analysis Results
@@ -63,9 +63,9 @@ export function ResultsPanel({ hasResults, activeTab, onTabChange }: ResultsPane
   }
 
   return (
-    <aside className="w-80 bg-panel border-l border-border flex flex-col">
+    <aside className="h-full bg-panel border-l border-border flex flex-col">
       {/* Tabs */}
-      <div className="flex border-b border-border">
+      <div className="flex border-b border-border shrink-0">
         {[
           { id: 'summary', label: 'Summary', icon: AlertTriangle },
           { id: 'features', label: 'Features', icon: Database },
@@ -214,7 +214,7 @@ export function ResultsPanel({ hasResults, activeTab, onTabChange }: ResultsPane
       </div>
 
       {/* Actions */}
-      <div className="p-3 border-t border-border space-y-2">
+      <div className="p-3 border-t border-border space-y-2 shrink-0">
         <button className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
           <FileText className="w-3.5 h-3.5" />
           View Full Report
