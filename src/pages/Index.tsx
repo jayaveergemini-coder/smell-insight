@@ -1,47 +1,54 @@
 import { useState, useCallback, useRef } from 'react';
-import { MenuBar } from '@/components/ide/MenuBar';
+import { ActivityBar, ActivityView } from '@/components/ide/ActivityBar';
 import { FileExplorer, FileNode } from '@/components/ide/FileExplorer';
-import { CodePanel } from '@/components/ide/CodePanel';
-import { AnalysisPanel } from '@/components/ide/AnalysisPanel';
-import { LogPanel, LogEntry } from '@/components/ide/LogPanel';
+import { SearchPanel } from '@/components/ide/SearchPanel';
+import { SmellsPanel } from '@/components/ide/SmellsPanel';
+import { ExtensionsPanel } from '@/components/ide/ExtensionsPanel';
+import { SettingsPanel } from '@/components/ide/SettingsPanel';
+import { EditorPanel, EditorTab } from '@/components/ide/EditorPanel';
+import { EditorToolbar } from '@/components/ide/EditorToolbar';
+import { TerminalPanel, LogEntry } from '@/components/ide/TerminalPanel';
+import { ResultsPanel } from '@/components/ide/ResultsPanel';
+import { MenuBar } from '@/components/ide/MenuBar';
 import { extractFolderFiles, ExtractedFile, countFilesAndFolders, ProjectValidation } from '@/lib/folderExtractor';
 import { toast } from '@/hooks/use-toast';
 import { HelpDialog } from '@/components/ide/HelpDialog';
+import { Upload } from 'lucide-react';
 
 const Index = () => {
+  // Project state
   const [files, setFiles] = useState<FileNode[]>([]);
   const [extractedFiles, setExtractedFiles] = useState<ExtractedFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [hasProject, setHasProject] = useState(false);
-  const [hasResults, setHasResults] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisStep, setAnalysisStep] = useState<string | null>(null);
-  const [analysisType, setAnalysisType] = useState<'frontend' | 'backend' | 'full'>('full');
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [activeTab, setActiveTab] = useState<'frontend' | 'backend' | 'classification'>('frontend');
   const [validation, setValidation] = useState<ProjectValidation>({ isValid: false, hasFrontend: false, hasBackend: false, errors: [] });
   const folderInputRef = useRef<HTMLInputElement>(null);
 
-  // Panel visibility
-  const [showExplorer, setShowExplorer] = useState(true);
-  const [showAnalysis, setShowAnalysis] = useState(true);
+  // Editor state
+  const [tabs, setTabs] = useState<EditorTab[]>([]);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+
+  // Panel state
+  const [activeView, setActiveView] = useState<ActivityView>('explorer');
   const [showLogs, setShowLogs] = useState(true);
+  const [showResults, setShowResults] = useState(true);
+
+  // Analysis state
+  const [hasResults, setHasResults] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState<'idle' | 'analyzing' | 'completed'>('idle');
+  const [analysisType, setAnalysisType] = useState<'frontend' | 'backend' | 'full'>('full');
+  const [analysisStep, setAnalysisStep] = useState<string | null>(null);
+  const [resultsTab, setResultsTab] = useState<'summary' | 'features' | 'classification'>('summary');
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
   // Help dialog
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
-  const [helpContent, setHelpContent] = useState<{ title: string; content: string }>({ title: '', content: '' });
+  const [helpContent, setHelpContent] = useState({ title: '', content: '' });
+
+  const hasProject = files.length > 0;
 
   const addLog = useCallback((type: LogEntry['type'], message: string) => {
-    const timestamp = new Date().toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    setLogs((prev) => [
-      ...prev,
-      { id: Date.now() + Math.random(), type, message, timestamp },
-    ]);
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLogs((prev) => [...prev, { id: Date.now() + Math.random(), type, message, timestamp }]);
   }, []);
 
   const handleUploadClick = useCallback(() => {
@@ -60,58 +67,29 @@ const Index = () => {
       
       setExtractedFiles(extracted);
       setFiles(tree);
-      setHasProject(true);
-      setSelectedFile(null);
-      setHasResults(false);
       setValidation(projectValidation);
+      setTabs([]);
+      setActiveTab(null);
+      setHasResults(false);
+      setAnalysisStatus('idle');
       
-      if (projectValidation.hasFrontend) {
-        addLog('success', 'Frontend folder detected');
-      }
-      if (projectValidation.hasBackend) {
-        addLog('success', 'Backend folder detected');
-      }
+      if (projectValidation.hasFrontend) addLog('success', 'Frontend folder detected');
+      if (projectValidation.hasBackend) addLog('success', 'Backend folder detected');
+      addLog('success', `Project loaded: ${counts.files} files in ${counts.folders} directories`);
       
-      addLog('success', 'Project structure loaded successfully');
-      addLog('info', `Found ${counts.folders} directories, ${counts.files} files`);
-      
-      if (counts.frontendFiles > 0) {
-        addLog('info', `Frontend: ${counts.frontendFiles} files`);
-      }
-      if (counts.backendFiles > 0) {
-        addLog('info', `Backend: ${counts.backendFiles} files`);
-      }
-      
-      if (!projectValidation.isValid) {
-        toast({
-          title: 'Invalid project structure',
-          description: 'Please upload a valid React + Backend project structure',
-          variant: 'destructive',
-        });
-      } else if (!projectValidation.hasFrontend || !projectValidation.hasBackend) {
-        toast({
-          title: 'Partial structure detected',
-          description: `${!projectValidation.hasFrontend ? 'Frontend folder missing. ' : ''}${!projectValidation.hasBackend ? 'Backend folder missing.' : ''}`,
-          variant: 'default',
-        });
-      } else {
-        toast({
-          title: 'Project uploaded',
-          description: `Loaded ${counts.files} files from project folder`,
-        });
-      }
+      toast({
+        title: projectValidation.isValid ? 'Project uploaded' : 'Partial structure',
+        description: projectValidation.isValid 
+          ? `Loaded ${counts.files} files` 
+          : 'Some folders may be missing',
+        variant: projectValidation.isValid ? 'default' : 'destructive',
+      });
     } catch (error) {
       addLog('info', 'Failed to process folder');
-      toast({
-        title: 'Upload failed',
-        description: 'Could not process the folder. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Upload failed', description: 'Could not process the folder', variant: 'destructive' });
     }
 
-    if (folderInputRef.current) {
-      folderInputRef.current.value = '';
-    }
+    if (folderInputRef.current) folderInputRef.current.value = '';
   }, [addLog]);
 
   const getFileContent = useCallback((path: string): string | null => {
@@ -122,347 +100,216 @@ const Index = () => {
     return file?.content ?? null;
   }, [extractedFiles]);
 
-  const runFrontendAnalysis = useCallback(async () => {
+  const handleFileSelect = useCallback((path: string) => {
+    const fileName = path.split('/').pop() || path;
+    const category = path.toLowerCase().includes('frontend') ? 'frontend' : 
+                     path.toLowerCase().includes('backend') ? 'backend' : 'other';
+    
+    const existingTab = tabs.find(t => t.path === path);
+    if (existingTab) {
+      setActiveTab(existingTab.id);
+    } else {
+      const newTab: EditorTab = { id: `tab-${Date.now()}`, path, name: fileName, category };
+      setTabs(prev => [...prev, newTab]);
+      setActiveTab(newTab.id);
+    }
+  }, [tabs]);
+
+  const handleTabClose = useCallback((id: string) => {
+    setTabs(prev => {
+      const newTabs = prev.filter(t => t.id !== id);
+      if (activeTab === id && newTabs.length > 0) {
+        setActiveTab(newTabs[newTabs.length - 1].id);
+      } else if (newTabs.length === 0) {
+        setActiveTab(null);
+      }
+      return newTabs;
+    });
+  }, [activeTab]);
+
+  const runAnalysis = useCallback(async (type: 'frontend' | 'backend' | 'full') => {
     setIsAnalyzing(true);
-    setAnalysisType('frontend');
+    setAnalysisStatus('analyzing');
+    setAnalysisType(type);
     setHasResults(false);
-    
-    const steps = ['scan-frontend', 'detect-jsx', 'extract-frontend', 'complete-frontend'];
-    
+
+    const steps = type === 'frontend' 
+      ? ['Scanning components', 'Analyzing JSX', 'Extracting metrics']
+      : type === 'backend'
+      ? ['Scanning services', 'Analyzing logic', 'Extracting metrics']
+      : ['Scanning frontend', 'Scanning backend', 'Detecting smells', 'Extracting features', 'Running ML model'];
+
     for (const step of steps) {
       setAnalysisStep(step);
-      addLog(step === 'complete-frontend' ? 'success' : 'info', 
-        step === 'scan-frontend' ? 'Scanning frontend components...' :
-        step === 'detect-jsx' ? 'Analyzing JSX complexity...' :
-        step === 'extract-frontend' ? 'Extracting React metrics...' :
-        'Frontend analysis completed'
-      );
-      await new Promise((r) => setTimeout(r, 1000));
+      addLog('info', `${step}...`);
+      await new Promise(r => setTimeout(r, 800));
     }
 
     setIsAnalyzing(false);
     setAnalysisStep(null);
+    setAnalysisStatus('completed');
     setHasResults(true);
-    setActiveTab('frontend');
-    addLog('success', 'Frontend code smells detected: 29 issues found');
-  }, [addLog]);
-
-  const runBackendAnalysis = useCallback(async () => {
-    setIsAnalyzing(true);
-    setAnalysisType('backend');
-    setHasResults(false);
-    
-    const steps = ['scan-backend', 'detect-logic', 'extract-backend', 'complete-backend'];
-    
-    for (const step of steps) {
-      setAnalysisStep(step);
-      addLog(step === 'complete-backend' ? 'success' : 'info', 
-        step === 'scan-backend' ? 'Scanning backend services...' :
-        step === 'detect-logic' ? 'Analyzing business logic...' :
-        step === 'extract-backend' ? 'Extracting API metrics...' :
-        'Backend analysis completed'
-      );
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-
-    setIsAnalyzing(false);
-    setAnalysisStep(null);
-    setHasResults(true);
-    setActiveTab('backend');
-    addLog('success', 'Backend code smells detected: 20 issues found');
-  }, [addLog]);
-
-  const runFullAnalysis = useCallback(async () => {
-    setIsAnalyzing(true);
-    setAnalysisType('full');
-    setHasResults(false);
-    
-    const steps = ['scan-frontend', 'scan-backend', 'detect-smells', 'extract-metrics', 'prepare-ml', 'complete'];
-    
-    for (const step of steps) {
-      setAnalysisStep(step);
-      addLog(step === 'complete' ? 'success' : 'info', 
-        step === 'scan-frontend' ? 'Scanning frontend components...' :
-        step === 'scan-backend' ? 'Analyzing backend services...' :
-        step === 'detect-smells' ? 'Detecting code smells...' :
-        step === 'extract-metrics' ? 'Extracting ML features...' :
-        step === 'prepare-ml' ? 'Preparing ML features...' :
-        'Full analysis completed'
-      );
-      await new Promise((r) => setTimeout(r, 900));
-    }
-
-    setIsAnalyzing(false);
-    setAnalysisStep(null);
-    setHasResults(true);
-    setActiveTab('classification');
-    addLog('success', 'Total code smells detected: 49 issues');
+    setResultsTab(type === 'full' ? 'classification' : 'summary');
+    addLog('success', `${type.charAt(0).toUpperCase() + type.slice(1)} analysis completed`);
     addLog('success', 'Bug classified successfully');
-    addLog('info', 'Predicted: State Management Error (84.7% confidence)');
-  }, [addLog]);
-
-  const closeProject = useCallback(() => {
-    setFiles([]);
-    setExtractedFiles([]);
-    setSelectedFile(null);
-    setHasProject(false);
-    setHasResults(false);
-    setValidation({ isValid: false, hasFrontend: false, hasBackend: false, errors: [] });
-    setLogs([]);
-    addLog('info', 'Project closed');
+    toast({ title: 'Analysis Complete', description: 'Results are ready to view' });
   }, [addLog]);
 
   const handleMenuAction = useCallback((action: string) => {
     switch (action) {
-      case 'upload':
-        handleUploadClick();
+      case 'upload': handleUploadClick(); break;
+      case 'close': 
+        setFiles([]); setExtractedFiles([]); setTabs([]); setActiveTab(null); 
+        setHasResults(false); setValidation({ isValid: false, hasFrontend: false, hasBackend: false, errors: [] });
+        addLog('info', 'Project closed');
         break;
-      case 'close':
-        closeProject();
-        break;
-      case 'saveReport':
-      case 'exportPdf':
-        toast({ title: 'Export', description: 'Report export simulation triggered' });
-        addLog('info', 'Generating report...');
-        break;
-      case 'exit':
-        toast({ title: 'Exit', description: 'Exit simulation - page would close' });
-        break;
-      case 'clearResults':
-        setHasResults(false);
-        addLog('info', 'Analysis results cleared');
-        break;
-      case 'selectSmelly':
-        toast({ title: 'Selection', description: 'Files with code smells selected' });
-        break;
-      case 'toggleExplorer':
-        setShowExplorer(prev => !prev);
-        break;
-      case 'toggleAnalysis':
-        setShowAnalysis(prev => !prev);
-        break;
-      case 'toggleLogs':
-        setShowLogs(prev => !prev);
-        break;
-      case 'goSmells':
-        setActiveTab('frontend');
-        break;
-      case 'goFeatures':
-        setActiveTab('backend');
-        break;
-      case 'goClassification':
-        setActiveTab('classification');
-        break;
-      case 'runSmells':
-        runFrontendAnalysis();
-        break;
-      case 'runFeatures':
-        runBackendAnalysis();
-        break;
-      case 'runClassification':
-      case 'runPipeline':
-        runFullAnalysis();
-        break;
-      case 'showLogs':
-        setShowLogs(true);
-        break;
-      case 'clearLogs':
-        setLogs([]);
-        break;
+      case 'runSmells': if (validation.hasFrontend) runAnalysis('frontend'); break;
+      case 'runFeatures': if (validation.hasBackend) runAnalysis('backend'); break;
+      case 'runPipeline': if (hasProject) runAnalysis('full'); break;
+      case 'clearLogs': setLogs([]); break;
+      case 'toggleLogs': setShowLogs(prev => !prev); break;
+      case 'toggleAnalysis': setShowResults(prev => !prev); break;
       case 'helpOverview':
-        setHelpContent({
-          title: 'Project Overview',
-          content: `# Smell Aware Bug Classification
-
-This system demonstrates how code smells in both frontend (React) and backend (Node.js) can be used to predict and classify potential bugs using machine learning.
-
-## Key Features
-- **Folder-Based Upload**: Upload entire React + Backend projects
-- **Separate Analysis**: Analyze frontend and backend independently
-- **ML Classification**: Predict bug categories using trained models
-
-## Project Structure
-The system expects:
-- \`frontend/\` - React application (components, hooks, etc.)
-- \`backend/\` - Node.js/Express API (routes, controllers, etc.)`,
-        });
-        setHelpDialogOpen(true);
-        break;
       case 'helpSystem':
-        setHelpContent({
-          title: 'How This System Works',
-          content: `# System Architecture
-
-## Analysis Pipeline
-
-### Frontend Analysis
-- Scans React components for:
-  - Large Component smell
-  - High JSX Complexity
-  - Duplicate UI Logic
-  - Missing PropTypes
-
-### Backend Analysis
-- Analyzes Node.js services for:
-  - Long Methods
-  - High Cyclomatic Complexity
-  - Duplicate Business Logic
-  - Large Controllers
-
-### ML Classification
-Combined features from both analyses are used to predict:
-- Bug Category
-- Confidence Score
-- Risk Level`,
-        });
-        setHelpDialogOpen(true);
-        break;
       case 'helpTech':
-        setHelpContent({
-          title: 'Technology Stack',
-          content: `# Technologies Used
-
-## Frontend Interface
-- **React 18** with TypeScript
-- **Tailwind CSS** for styling
-- **Lucide Icons**
-
-## Analysis
-- **Static Analysis** for code parsing
-- **Folder Upload API** for project loading
-
-## Expected Project Structure
-\`\`\`
-project/
-├── frontend/
-│   ├── src/
-│   ├── public/
-│   └── package.json
-├── backend/
-│   ├── routes/
-│   ├── controllers/
-│   └── server.js
-└── README.md
-\`\`\``,
-        });
-        setHelpDialogOpen(true);
-        break;
       case 'helpML':
-        setHelpContent({
-          title: 'ML Model Explanation',
-          content: `# Machine Learning Model
-
-## Features from Frontend
-- Component Line Count
-- JSX Nesting Depth
-- Props Complexity
-- State Usage Patterns
-
-## Features from Backend
-- Method Length
-- Cyclomatic Complexity
-- API Route Count
-- Error Handling Coverage
-
-## Output Classes
-1. State Management Error
-2. API Integration Bug
-3. Logic Error
-4. Null Reference
-
-## Model Accuracy: 84.7%`,
-        });
-        setHelpDialogOpen(true);
-        break;
       case 'helpAbout':
-        setHelpContent({
-          title: 'About Final Year Project',
-          content: `# Final Year Project
-
-## Title
-**Smell Aware Bug Classification Using Machine Learning**
-
-## Objective
-Develop a system that analyzes React + Node.js projects to detect code smells and predict potential bug categories.
-
-## Scope
-- Web-based IDE interface
-- Separate frontend/backend analysis
-- ML-based bug classification
-- Academic demonstration
-
-## Note
-This is a prototype/simulation for academic demonstration purposes.`,
-        });
+        setHelpContent({ title: 'Help', content: 'Documentation for academic demonstration' });
         setHelpDialogOpen(true);
         break;
-      default:
-        toast({ title: 'Action', description: `${action} triggered (simulation)` });
+      default: toast({ title: 'Action', description: `${action} (simulation)` });
     }
-  }, [handleUploadClick, closeProject, addLog, runFrontendAnalysis, runBackendAnalysis, runFullAnalysis]);
+  }, [handleUploadClick, runAnalysis, hasProject, validation, addLog]);
+
+  const resetLayout = useCallback(() => {
+    setShowLogs(true);
+    setShowResults(true);
+    setActiveView('explorer');
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <input
         ref={folderInputRef}
         type="file"
-        // @ts-ignore - webkitdirectory is not in React types
+        // @ts-ignore
         webkitdirectory=""
         directory=""
         multiple
         onChange={handleFolderChange}
         className="hidden"
       />
-      
+
+      {/* Menu Bar */}
       <MenuBar 
-        onAction={handleMenuAction} 
+        onAction={handleMenuAction}
         hasProject={hasProject}
         hasFrontend={validation.hasFrontend}
         hasBackend={validation.hasBackend}
         isAnalyzing={isAnalyzing}
       />
 
+      {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {showExplorer && (
-          <FileExplorer
-            files={files}
-            selectedFile={selectedFile}
-            onSelectFile={setSelectedFile}
+        {/* Activity Bar */}
+        <ActivityBar activeView={activeView} onViewChange={setActiveView} />
+
+        {/* Side Panel */}
+        <aside className="w-64 bg-sidebar-bg border-r border-border flex flex-col shrink-0">
+          <div className="p-3 border-b border-border">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {activeView === 'explorer' && 'Project Explorer'}
+              {activeView === 'search' && 'Search'}
+              {activeView === 'smells' && 'Code Smells'}
+              {activeView === 'extensions' && 'Extensions'}
+              {activeView === 'settings' && 'Settings'}
+            </span>
+          </div>
+
+          {activeView === 'explorer' && (
+            <>
+              {hasProject ? (
+                <FileExplorer
+                  files={files}
+                  selectedFile={tabs.find(t => t.id === activeTab)?.path || null}
+                  onSelectFile={handleFileSelect}
+                  hasFrontend={validation.hasFrontend}
+                  hasBackend={validation.hasBackend}
+                />
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-6">
+                  <Upload className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                  <p className="text-sm font-medium text-foreground mb-2">No project loaded</p>
+                  <p className="text-xs text-muted-foreground text-center mb-4">
+                    Upload a React + Backend project folder
+                  </p>
+                  <button
+                    onClick={handleUploadClick}
+                    className="px-4 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                  >
+                    Upload Project
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+          {activeView === 'search' && <SearchPanel onResultClick={handleFileSelect} />}
+          {activeView === 'smells' && <SmellsPanel hasResults={hasResults} />}
+          {activeView === 'extensions' && <ExtensionsPanel />}
+          {activeView === 'settings' && (
+            <SettingsPanel
+              showLogs={showLogs}
+              showAnalysis={showResults}
+              onToggleLogs={() => setShowLogs(prev => !prev)}
+              onToggleAnalysis={() => setShowResults(prev => !prev)}
+              onResetLayout={resetLayout}
+            />
+          )}
+        </aside>
+
+        {/* Editor Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <EditorToolbar
+            onAnalyzeCurrent={() => toast({ title: 'Analyze', description: 'Current file analysis (simulation)' })}
+            onAnalyzeFrontend={() => runAnalysis('frontend')}
+            onAnalyzeBackend={() => runAnalysis('backend')}
+            onRunFullAnalysis={() => runAnalysis('full')}
+            hasProject={hasProject}
             hasFrontend={validation.hasFrontend}
             hasBackend={validation.hasBackend}
+            hasActiveFile={activeTab !== null}
+            isAnalyzing={isAnalyzing}
+            status={analysisStatus}
           />
-        )}
-
-        <main className="flex-1 flex flex-col p-3 gap-3 overflow-hidden">
-          <div className="flex-1 flex gap-3 overflow-hidden">
-            <CodePanel
-              selectedFile={selectedFile}
+          
+          <div className="flex-1 flex overflow-hidden">
+            <EditorPanel
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onTabClose={handleTabClose}
+              getFileContent={getFileContent}
               isAnalyzing={isAnalyzing}
               analysisStep={analysisStep}
               analysisType={analysisType}
-              getFileContent={getFileContent}
             />
-            {showAnalysis && (
-              <AnalysisPanel 
-                hasResults={hasResults} 
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                hasFrontend={validation.hasFrontend}
-                hasBackend={validation.hasBackend}
+
+            {/* Results Panel */}
+            {showResults && (
+              <ResultsPanel
+                hasResults={hasResults}
+                activeTab={resultsTab}
+                onTabChange={setResultsTab}
               />
             )}
           </div>
-        </main>
+
+          {/* Terminal */}
+          {showLogs && <TerminalPanel logs={logs} onClear={() => setLogs([])} />}
+        </div>
       </div>
 
-      {showLogs && <LogPanel logs={logs} />}
-
-      <HelpDialog
-        open={helpDialogOpen}
-        onOpenChange={setHelpDialogOpen}
-        title={helpContent.title}
-        content={helpContent.content}
-      />
+      <HelpDialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen} title={helpContent.title} content={helpContent.content} />
     </div>
   );
 };
