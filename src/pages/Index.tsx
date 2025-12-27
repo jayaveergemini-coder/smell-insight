@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { ActivityBar, ActivityView } from '@/components/ide/ActivityBar';
 import { FileExplorer, FileNode } from '@/components/ide/FileExplorer';
@@ -317,9 +317,77 @@ const Index = () => {
 
   const resetLayout = useCallback(() => {
     setShowLogs(true);
+    setIsTerminalMinimized(false);
     setShowResults(true);
+    setIsResultsMinimized(false);
     setActiveView('explorer');
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+` - Toggle Terminal
+      if (e.ctrlKey && e.key === '`') {
+        e.preventDefault();
+        if (showLogs) {
+          setIsTerminalMinimized(prev => !prev);
+        } else {
+          setShowLogs(true);
+          setIsTerminalMinimized(false);
+        }
+      }
+      
+      // Ctrl+J - Toggle Analysis Panel
+      if (e.ctrlKey && e.key === 'j') {
+        e.preventDefault();
+        if (showResults) {
+          setIsResultsMinimized(prev => !prev);
+        } else {
+          setShowResults(true);
+          setIsResultsMinimized(false);
+        }
+      }
+      
+      // Ctrl+B - Toggle Explorer/Sidebar
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        setActiveView(prev => prev === 'explorer' ? 'settings' : 'explorer');
+      }
+      
+      // Ctrl+O - Open Project
+      if (e.ctrlKey && e.key === 'o') {
+        e.preventDefault();
+        setTrustDialogOpen(true);
+      }
+      
+      // F5 - Analyze Frontend
+      if (e.key === 'F5' && validation.hasFrontend && !isAnalyzing) {
+        e.preventDefault();
+        runAnalysis('frontend');
+      }
+      
+      // F6 - Analyze Backend
+      if (e.key === 'F6' && validation.hasBackend && !isAnalyzing) {
+        e.preventDefault();
+        runAnalysis('backend');
+      }
+      
+      // F8 - Run Full Analysis
+      if (e.key === 'F8' && hasProject && !isAnalyzing) {
+        e.preventDefault();
+        runAnalysis('full');
+      }
+      
+      // Escape - Close dialogs/menus
+      if (e.key === 'Escape') {
+        setHelpDialogOpen(false);
+        setTrustDialogOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showLogs, showResults, validation, isAnalyzing, hasProject, runAnalysis]);
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
