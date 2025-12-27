@@ -149,13 +149,13 @@ export function EditorPanel({
       )}
 
       {/* Code Editor */}
-      <div className="flex-1 overflow-hidden flex">
+      <div className="flex-1 overflow-hidden flex min-h-0">
         {content !== null ? (
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex overflow-auto scrollbar-thin min-h-0">
             {/* Line Numbers */}
             <div 
               ref={lineNumbersRef}
-              className="bg-secondary/20 border-r border-border px-2 py-4 select-none overflow-hidden"
+              className="bg-secondary/20 border-r border-border px-2 py-4 select-none sticky left-0"
             >
               <div className="font-mono text-xs text-right">
                 {lines.map((_, idx) => (
@@ -172,19 +172,22 @@ export function EditorPanel({
                 ))}
               </div>
             </div>
-            {/* Editable Text Area */}
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={handleContentChange}
-              onScroll={handleScroll}
-              onKeyUp={handleCursorChange}
-              onMouseUp={handleCursorChange}
-              onClick={handleCursorChange}
-              onFocus={handleCursorChange}
-              className="flex-1 bg-transparent text-foreground font-mono text-sm p-4 resize-none outline-none leading-6 overflow-auto scrollbar-thin"
-              spellCheck={false}
-            />
+            {/* Code Content */}
+            <div className="flex-1 min-w-0">
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={handleContentChange}
+                onScroll={handleScroll}
+                onKeyUp={handleCursorChange}
+                onMouseUp={handleCursorChange}
+                onClick={handleCursorChange}
+                onFocus={handleCursorChange}
+                className="w-full h-full bg-transparent text-foreground font-mono text-sm p-4 resize-none outline-none leading-6"
+                spellCheck={false}
+                style={{ minHeight: `${lines.length * 24 + 32}px` }}
+              />
+            </div>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
