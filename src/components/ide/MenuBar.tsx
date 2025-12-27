@@ -207,14 +207,10 @@ export function MenuBar({ onAction, hasProject = false, hasFrontend = false, has
     >
       {/* App Icon & Title */}
       <div className="flex items-center gap-2 mr-4 pr-4 border-r border-border">
-        <svg className="w-5 h-5 animate-spin-slow" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" className="stroke-primary" strokeWidth="1.5" fill="none" />
-          <ellipse cx="12" cy="12" rx="10" ry="4" className="stroke-primary" strokeWidth="1.5" fill="none" />
-          <ellipse cx="12" cy="12" rx="10" ry="4" className="stroke-primary" strokeWidth="1.5" fill="none" transform="rotate(60 12 12)" />
-          <ellipse cx="12" cy="12" rx="10" ry="4" className="stroke-primary" strokeWidth="1.5" fill="none" transform="rotate(120 12 12)" />
-          <circle cx="12" cy="12" r="2" className="fill-primary" />
-        </svg>
-        <span className="text-xs font-medium text-foreground">React Code Analyzer</span>
+        <div className="w-5 h-5 rounded bg-primary/10 flex items-center justify-center animate-pulse-soft">
+          <FileCode className="w-3.5 h-3.5 text-primary" />
+        </div>
+        <span className="text-xs font-medium text-foreground">Code Analyzer</span>
       </div>
 
       {/* Menu Items */}
