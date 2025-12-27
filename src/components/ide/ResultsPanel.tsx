@@ -9,12 +9,17 @@ import {
   AlertTriangle,
   Database,
   BarChart3,
+  Minus,
+  X,
 } from 'lucide-react';
 
 interface ResultsPanelProps {
   hasResults: boolean;
   activeTab: 'summary' | 'features' | 'classification';
   onTabChange: (tab: 'summary' | 'features' | 'classification') => void;
+  onMinimize?: () => void;
+  onClose?: () => void;
+  isMinimized?: boolean;
 }
 
 const smellSummary = [
@@ -40,14 +45,46 @@ const bugCategories = [
   { category: 'Null Reference', probability: 12 },
 ];
 
-export function ResultsPanel({ hasResults, activeTab, onTabChange }: ResultsPanelProps) {
+export function ResultsPanel({ hasResults, activeTab, onTabChange, onMinimize, onClose, isMinimized }: ResultsPanelProps) {
+  if (isMinimized) {
+    return (
+      <aside className="h-full bg-panel border-l border-border flex flex-col w-10">
+        <div className="flex flex-col items-center py-2 gap-2">
+          <button
+            onClick={onMinimize}
+            className="p-1.5 rounded hover:bg-secondary transition-colors"
+            title="Expand"
+          >
+            <BarChart3 className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+      </aside>
+    );
+  }
+
   if (!hasResults) {
     return (
       <aside className="h-full bg-panel border-l border-border flex flex-col">
-        <div className="p-3 border-b border-border">
+        <div className="p-3 border-b border-border flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Analysis Results
           </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onMinimize}
+              className="p-1 rounded hover:bg-secondary transition-colors"
+              title="Minimize"
+            >
+              <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1 rounded hover:bg-secondary transition-colors"
+              title="Close"
+            >
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center">
@@ -64,6 +101,29 @@ export function ResultsPanel({ hasResults, activeTab, onTabChange }: ResultsPane
 
   return (
     <aside className="h-full bg-panel border-l border-border flex flex-col">
+      {/* Header with controls */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Results
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onMinimize}
+            className="p-1 rounded hover:bg-secondary transition-colors"
+            title="Minimize"
+          >
+            <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-secondary transition-colors"
+            title="Close"
+          >
+            <X className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex border-b border-border shrink-0">
         {[

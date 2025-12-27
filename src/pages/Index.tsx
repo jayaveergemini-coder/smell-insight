@@ -31,6 +31,7 @@ const Index = () => {
   const [activeView, setActiveView] = useState<ActivityView>('explorer');
   const [showLogs, setShowLogs] = useState(true);
   const [showResults, setShowResults] = useState(true);
+  const [isResultsMinimized, setIsResultsMinimized] = useState(false);
 
   // Analysis state
   const [hasResults, setHasResults] = useState(false);
@@ -182,6 +183,15 @@ const Index = () => {
     }
   }, [handleUploadClick, runAnalysis, hasProject, validation, addLog]);
 
+  const handleTerminalCommand = useCallback((command: string) => {
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLogs(prev => [
+      ...prev,
+      { id: Date.now(), type: 'input' as const, message: command, timestamp },
+      { id: Date.now() + 1, type: 'output' as const, message: `Command "${command}" executed (simulation)`, timestamp }
+    ]);
+  }, []);
+
   const resetLayout = useCallback(() => {
     setShowLogs(true);
     setShowResults(true);
@@ -311,11 +321,14 @@ const Index = () => {
                   {showResults && (
                     <>
                       <ResizableHandle withHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
-                      <ResizablePanel defaultSize={35} minSize={20} maxSize={50}>
+                      <ResizablePanel defaultSize={isResultsMinimized ? 5 : 35} minSize={5} maxSize={50}>
                         <ResultsPanel
                           hasResults={hasResults}
                           activeTab={resultsTab}
                           onTabChange={setResultsTab}
+                          onMinimize={() => setIsResultsMinimized(prev => !prev)}
+                          onClose={() => setShowResults(false)}
+                          isMinimized={isResultsMinimized}
                         />
                       </ResizablePanel>
                     </>
@@ -324,7 +337,7 @@ const Index = () => {
               </div>
 
               {/* Terminal */}
-              {showLogs && <TerminalPanel logs={logs} onClear={() => setLogs([])} />}
+              {showLogs && <TerminalPanel logs={logs} onClear={() => setLogs([])} onCommand={handleTerminalCommand} />}
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
