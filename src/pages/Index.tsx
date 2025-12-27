@@ -1,18 +1,22 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { ActionBar } from '@/components/ide/ActionBar';
 import { FileExplorer, FileNode } from '@/components/ide/FileExplorer';
 import { CodePanel } from '@/components/ide/CodePanel';
 import { AnalysisPanel } from '@/components/ide/AnalysisPanel';
 import { LogPanel, LogEntry } from '@/components/ide/LogPanel';
+import { extractZipFile, ExtractedFile, countFilesAndFolders } from '@/lib/zipExtractor';
+import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
   const [files, setFiles] = useState<FileNode[]>([]);
+  const [extractedFiles, setExtractedFiles] = useState<ExtractedFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [hasProject, setHasProject] = useState(false);
   const [hasResults, setHasResults] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addLog = useCallback((type: LogEntry['type'], message: string) => {
     const timestamp = new Date().toLocaleTimeString('en-US', {
@@ -27,60 +31,61 @@ const Index = () => {
     ]);
   }, []);
 
-  const handleUpload = useCallback(() => {
-    addLog('info', 'Uploading project folder...');
-    
-    setTimeout(() => {
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.zip')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload a ZIP file containing your project.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    addLog('info', `Uploading ${file.name} (${(file.size / 1024).toFixed(1)} KB)...`);
+
+    try {
+      const { files: extracted, tree } = await extractZipFile(file);
+      const counts = countFilesAndFolders(tree);
+      
+      setExtractedFiles(extracted);
+      setFiles(tree);
       setHasProject(true);
-      setFiles([
-        {
-          name: 'frontend',
-          type: 'folder',
-          children: [
-            {
-              name: 'src',
-              type: 'folder',
-              children: [
-                { name: 'App.tsx', type: 'file' },
-                { name: 'index.tsx', type: 'file' },
-                { name: 'utils.ts', type: 'file' },
-              ],
-            },
-            { name: 'package.json', type: 'file' },
-          ],
-        },
-        {
-          name: 'backend',
-          type: 'folder',
-          children: [
-            {
-              name: 'src',
-              type: 'folder',
-              children: [
-                { name: 'server.py', type: 'file' },
-                { name: 'routes.py', type: 'file' },
-                { name: 'models.py', type: 'file' },
-              ],
-            },
-            { name: 'requirements.txt', type: 'file' },
-          ],
-        },
-        {
-          name: 'ml-engine',
-          type: 'folder',
-          children: [
-            { name: 'classifier.py', type: 'file' },
-            { name: 'feature_extractor.py', type: 'file' },
-            { name: 'model.pkl', type: 'file' },
-          ],
-        },
-        { name: 'package.json', type: 'file' },
-        { name: 'README.md', type: 'file' },
-      ]);
-      addLog('success', 'Project uploaded successfully');
-      addLog('info', 'Found 3 directories, 12 files');
-    }, 800);
+      setSelectedFile(null);
+      setHasResults(false);
+      
+      addLog('success', 'Project uploaded and extracted successfully');
+      addLog('info', `Found ${counts.folders} directories, ${counts.files} files`);
+      
+      toast({
+        title: 'Project uploaded',
+        description: `Extracted ${counts.files} files from ${file.name}`,
+      });
+    } catch (error) {
+      addLog('success', 'Failed to extract ZIP file');
+      toast({
+        title: 'Extraction failed',
+        description: 'Could not extract the ZIP file. Please ensure it is a valid archive.',
+        variant: 'destructive',
+      });
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   }, [addLog]);
+
+  const getFileContent = useCallback((path: string): string | null => {
+    const file = extractedFiles.find(f => f.path === path || f.path === path + '/');
+    return file?.content ?? null;
+  }, [extractedFiles]);
 
   const runAnalysis = useCallback(async () => {
     setIsAnalyzing(true);
@@ -118,8 +123,16 @@ const Index = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".zip"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      
       <ActionBar
-        onUpload={handleUpload}
+        onUpload={handleUploadClick}
         onRunSmellAnalysis={runAnalysis}
         onRunBugClassification={runBugClassification}
         isAnalyzing={isAnalyzing}
@@ -139,6 +152,7 @@ const Index = () => {
               selectedFile={selectedFile}
               isAnalyzing={isAnalyzing}
               analysisStep={analysisStep}
+              getFileContent={getFileContent}
             />
             <AnalysisPanel hasResults={hasResults} />
           </div>
