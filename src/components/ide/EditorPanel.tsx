@@ -45,20 +45,6 @@ export function EditorPanel({
   const [currentLine, setCurrentLine] = useState(1);
   const [isEditing, setIsEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const lineNumbersRef = useRef<HTMLDivElement>(null);
-  const codeContainerRef = useRef<HTMLDivElement>(null);
-  const highlightedRef = useRef<HTMLDivElement>(null);
-
-  // Sync scroll between textarea, line numbers and highlighted code
-  const handleScroll = useCallback(() => {
-    if (codeContainerRef.current && lineNumbersRef.current) {
-      lineNumbersRef.current.scrollTop = codeContainerRef.current.scrollTop;
-    }
-    if (codeContainerRef.current && highlightedRef.current) {
-      highlightedRef.current.scrollTop = codeContainerRef.current.scrollTop;
-      highlightedRef.current.scrollLeft = codeContainerRef.current.scrollLeft;
-    }
-  }, []);
 
   const content = activeTabData 
     ? (editedContent[activeTabData.path] ?? originalContent) 
@@ -168,12 +154,11 @@ export function EditorPanel({
       {/* Code Editor with Syntax Highlighting */}
       <div className="flex-1 overflow-hidden flex min-h-0">
         {content !== null ? (
-          <div className="flex-1 flex min-h-0 min-w-0">
+          <div className="flex-1 flex min-h-0 min-w-0 overflow-auto scrollbar-thin items-start bg-gradient-to-br from-primary/5 via-transparent to-accent/5">
             {/* Line Numbers */}
             <div
-              ref={lineNumbersRef}
               aria-hidden="true"
-              className="bg-secondary/20 border-r border-border px-2 py-4 select-none pointer-events-none overflow-hidden shrink-0"
+              className="bg-secondary/40 border-r border-border px-2 py-4 select-none pointer-events-none sticky left-0 shrink-0"
             >
               <div className="font-mono text-xs text-right">
                 {lines.map((_, idx) => (
@@ -191,22 +176,15 @@ export function EditorPanel({
               </div>
             </div>
 
-            {/* Code Area with Overlay */}
-            <div 
-              ref={codeContainerRef}
-              className="flex-1 min-w-0 overflow-auto scrollbar-thin relative"
-              onScroll={handleScroll}
-            >
-              {/* Syntax Highlighted Code (visible layer) */}
-              <div 
-                ref={highlightedRef}
-                className={`absolute inset-0 p-4 pointer-events-none overflow-hidden ${isEditing ? 'opacity-0' : 'opacity-100'}`}
+            {/* Code Preview + Editable Layer */}
+            <div className="relative w-max min-w-full">
+              <div
+                className={`pointer-events-none ${isEditing ? 'opacity-0' : 'opacity-100'}`}
                 aria-hidden="true"
               >
                 <SyntaxHighlightedCode content={content} filename={activeTabData?.name || ''} />
               </div>
 
-              {/* Editable Textarea (transparent when not editing, visible when editing) */}
               <textarea
                 ref={textareaRef}
                 value={content}
@@ -217,14 +195,10 @@ export function EditorPanel({
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 wrap="off"
-                className={`relative w-full bg-transparent font-mono text-sm p-4 resize-none outline-none leading-6 ${
+                className={`absolute inset-0 bg-transparent font-mono text-sm p-4 resize-none outline-none leading-6 w-full h-full ${
                   isEditing ? 'text-foreground' : 'text-transparent caret-foreground'
                 }`}
                 spellCheck={false}
-                style={{ 
-                  height: `${Math.max(lines.length * 24 + 32, 100)}px`,
-                  minWidth: 'max-content'
-                }}
               />
             </div>
           </div>

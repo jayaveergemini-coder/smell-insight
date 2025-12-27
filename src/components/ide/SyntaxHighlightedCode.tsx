@@ -44,7 +44,7 @@ export function SyntaxHighlightedCode({ content, filename }: SyntaxHighlightedCo
   }, [content, fileExt]);
 
   return (
-    <pre className="font-mono text-sm leading-6 whitespace-pre">
+    <pre className="font-mono text-sm leading-6 whitespace-pre p-4 min-w-max">
       {highlightedLines}
     </pre>
   );
