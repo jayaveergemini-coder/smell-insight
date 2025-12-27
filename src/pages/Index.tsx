@@ -53,7 +53,26 @@ const Index = () => {
   // Drag and drop state
   const [isDragging, setIsDragging] = useState(false);
 
+  // Project path for terminal
+  const [projectPath, setProjectPath] = useState<string>('~');
+  const [projectFolders, setProjectFolders] = useState<string[]>([]);
+
   const hasProject = files.length > 0;
+
+  // Helper to extract folder names from tree
+  const extractFolderNames = useCallback((nodes: FileNode[], prefix = ''): string[] => {
+    const folders: string[] = [];
+    for (const node of nodes) {
+      if (node.type === 'folder') {
+        const path = prefix ? `${prefix}/${node.name}` : node.name;
+        folders.push(path);
+        if (node.children) {
+          folders.push(...extractFolderNames(node.children, path));
+        }
+      }
+    }
+    return folders;
+  }, []);
 
   const addLog = useCallback((type: LogEntry['type'], message: string) => {
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -94,6 +113,13 @@ const Index = () => {
       setHasResults(false);
       setAnalysisStatus('idle');
       
+      // Extract project name and folder structure for terminal
+      const rootName = tree[0]?.name || 'project';
+      setProjectPath(`~/${rootName}`);
+      const folderNames = extractFolderNames(tree);
+      setProjectFolders(folderNames);
+      
+      addLog('success', `Working directory: ~/${rootName}`);
       if (projectValidation.hasFrontend) addLog('success', 'Frontend folder detected');
       if (projectValidation.hasBackend) addLog('success', 'Backend folder detected');
       addLog('success', `Project loaded: ${counts.files} files in ${counts.folders} directories`);
@@ -456,7 +482,15 @@ const Index = () => {
               </div>
 
               {/* Terminal */}
-              {showLogs && <TerminalPanel logs={logs} onClear={() => setLogs([])} onCommand={handleTerminalCommand} />}
+              {showLogs && (
+                <TerminalPanel 
+                  logs={logs} 
+                  onClear={() => setLogs([])} 
+                  onCommand={handleTerminalCommand}
+                  projectPath={projectPath}
+                  projectFolders={projectFolders}
+                />
+              )}
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
