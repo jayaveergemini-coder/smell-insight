@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { CheckCircle2, Loader2, Terminal, Trash2, Download, Plus, X, Folder } from 'lucide-react';
+import { CheckCircle2, Loader2, Terminal, Trash2, Download, Plus, X, Folder, Minus, Maximize2, Minimize2 } from 'lucide-react';
 
 interface LogEntry {
   id: number;
@@ -21,9 +21,15 @@ interface TerminalPanelProps {
   onCommand?: (command: string) => void;
   projectPath?: string;
   projectFolders?: string[];
+  onMinimize?: () => void;
+  onClose?: () => void;
+  isMinimized?: boolean;
 }
 
-export function TerminalPanel({ logs, onClear, onCommand, projectPath = '', projectFolders = [] }: TerminalPanelProps) {
+export function TerminalPanel({ logs, onClear, onCommand, projectPath = '', projectFolders = [], onMinimize, onClose, isMinimized }: TerminalPanelProps) {
+  const [terminalHeight, setTerminalHeight] = useState(192); // 12rem = 192px
+  const [isResizing, setIsResizing] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [terminals, setTerminals] = useState<TerminalTab[]>([
     { id: 'terminal-1', name: 'Terminal 1', logs: [], currentPath: projectPath || '~' }
   ]);
@@ -50,6 +56,35 @@ export function TerminalPanel({ logs, onClear, onCommand, projectPath = '', proj
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayLogs]);
+
+  // Handle resize
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !panelRef.current) return;
+      const rect = panelRef.current.getBoundingClientRect();
+      const newHeight = window.innerHeight - e.clientY;
+      setTerminalHeight(Math.max(80, Math.min(400, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   const getIcon = (type: LogEntry['type']) => {
     switch (type) {
@@ -192,8 +227,46 @@ export function TerminalPanel({ logs, onClear, onCommand, projectPath = '', proj
     });
   }, [terminals.length, activeTerminal]);
 
+  // Minimized state
+  if (isMinimized) {
+    return (
+      <div className="h-8 bg-log border-t border-border flex items-center justify-between px-3">
+        <div className="flex items-center gap-2">
+          <Terminal className="w-4 h-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Terminal</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onMinimize}
+            className="p-1 rounded hover:bg-secondary transition-colors"
+            title="Restore"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-secondary transition-colors"
+            title="Close"
+          >
+            <X className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-48 bg-log border-t border-border flex flex-col">
+    <div 
+      ref={panelRef}
+      className="bg-log border-t border-border flex flex-col relative"
+      style={{ height: `${terminalHeight}px` }}
+    >
+      {/* Resize Handle */}
+      <div
+        className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-primary/50 transition-colors z-10"
+        onMouseDown={handleMouseDown}
+      />
+
       {/* Terminal Tabs Header */}
       <div className="flex items-center justify-between border-b border-border bg-panel-header">
         <div className="flex items-center overflow-x-auto scrollbar-thin">
@@ -241,6 +314,20 @@ export function TerminalPanel({ logs, onClear, onCommand, projectPath = '', proj
             title="Export logs"
           >
             <Download className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <button
+            onClick={onMinimize}
+            className="p-1.5 rounded hover:bg-secondary transition-colors"
+            title="Minimize"
+          >
+            <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded hover:bg-secondary transition-colors"
+            title="Close Terminal"
+          >
+            <X className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
         </div>
       </div>

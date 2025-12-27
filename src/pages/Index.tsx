@@ -31,6 +31,7 @@ const Index = () => {
   // Panel state
   const [activeView, setActiveView] = useState<ActivityView>('explorer');
   const [showLogs, setShowLogs] = useState(true);
+  const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
   const [showResults, setShowResults] = useState(true);
   const [isResultsMinimized, setIsResultsMinimized] = useState(false);
 
@@ -489,6 +490,9 @@ const Index = () => {
                   onCommand={handleTerminalCommand}
                   projectPath={projectPath}
                   projectFolders={projectFolders}
+                  onMinimize={() => setIsTerminalMinimized(prev => !prev)}
+                  onClose={() => setShowLogs(false)}
+                  isMinimized={isTerminalMinimized}
                 />
               )}
             </div>
