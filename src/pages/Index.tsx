@@ -15,7 +15,7 @@ import { extractFolderFiles, ExtractedFile, countFilesAndFolders, ProjectValidat
 import { toast } from '@/hooks/use-toast';
 import { HelpDialog } from '@/components/ide/HelpDialog';
 import { TrustDialog } from '@/components/ide/TrustDialog';
-import { Upload } from 'lucide-react';
+import { Upload, FolderUp } from 'lucide-react';
 
 const Index = () => {
   // Project state
@@ -50,6 +50,9 @@ const Index = () => {
   // Trust dialog
   const [trustDialogOpen, setTrustDialogOpen] = useState(false);
 
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState(false);
+
   const hasProject = files.length > 0;
 
   const addLog = useCallback((type: LogEntry['type'], message: string) => {
@@ -76,10 +79,7 @@ const Index = () => {
     addLog('info', 'Upload cancelled - trust not granted');
   }, [addLog]);
 
-  const handleFolderChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = e.target.files;
-    if (!fileList || fileList.length === 0) return;
-
+  const processFiles = useCallback(async (fileList: FileList) => {
     addLog('info', 'Processing uploaded folder...');
 
     try {
@@ -109,9 +109,86 @@ const Index = () => {
       addLog('info', 'Failed to process folder');
       toast({ title: 'Upload failed', description: 'Could not process the folder', variant: 'destructive' });
     }
-
-    if (folderInputRef.current) folderInputRef.current.value = '';
   }, [addLog]);
+
+  const handleFolderChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    await processFiles(fileList);
+    if (folderInputRef.current) folderInputRef.current.value = '';
+  }, [processFiles]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const items = e.dataTransfer.items;
+    if (!items || items.length === 0) return;
+
+    // Collect all files from dropped items
+    const allFiles: File[] = [];
+    
+    const traverseFileTree = async (entry: FileSystemEntry, path: string = ''): Promise<void> => {
+      if (entry.isFile) {
+        const fileEntry = entry as FileSystemFileEntry;
+        return new Promise((resolve) => {
+          fileEntry.file((file) => {
+            // Create a new file with the full path
+            const fullPath = path ? `${path}/${file.name}` : file.name;
+            Object.defineProperty(file, 'webkitRelativePath', {
+              value: fullPath,
+              writable: false,
+            });
+            allFiles.push(file);
+            resolve();
+          });
+        });
+      } else if (entry.isDirectory) {
+        const dirEntry = entry as FileSystemDirectoryEntry;
+        const dirReader = dirEntry.createReader();
+        return new Promise((resolve) => {
+          dirReader.readEntries(async (entries) => {
+            for (const childEntry of entries) {
+              await traverseFileTree(childEntry, path ? `${path}/${entry.name}` : entry.name);
+            }
+            resolve();
+          });
+        });
+      }
+    };
+
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry();
+        if (entry) {
+          await traverseFileTree(entry);
+        }
+      }
+
+      if (allFiles.length > 0) {
+        // Create a FileList-like object
+        const dataTransfer = new DataTransfer();
+        allFiles.forEach(file => dataTransfer.items.add(file));
+        await processFiles(dataTransfer.files);
+      }
+    } catch (error) {
+      addLog('info', 'Failed to process dropped folder');
+      toast({ title: 'Drop failed', description: 'Could not process the dropped folder', variant: 'destructive' });
+    }
+  }, [processFiles, addLog]);
 
   const getFileContent = useCallback((path: string): string | null => {
     const file = extractedFiles.find(f => {
@@ -260,7 +337,25 @@ const Index = () => {
               </div>
 
               {activeView === 'explorer' && (
-                <>
+                <div 
+                  className={`flex-1 flex flex-col overflow-hidden relative transition-all ${
+                    isDragging ? 'bg-primary/5' : ''
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {/* Drag Overlay */}
+                  {isDragging && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-lg m-2 pointer-events-none">
+                      <div className="text-center">
+                        <FolderUp className="w-12 h-12 text-primary mx-auto mb-2 animate-bounce" />
+                        <p className="text-sm font-medium text-primary">Drop project folder here</p>
+                        <p className="text-xs text-primary/70">Release to upload</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {hasProject ? (
                     <FileExplorer
                       files={files}
@@ -271,20 +366,25 @@ const Index = () => {
                     />
                   ) : (
                     <div className="flex-1 flex flex-col items-center justify-center p-6">
-                      <Upload className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                      <p className="text-sm font-medium text-foreground mb-2">No project loaded</p>
+                      <div className="p-4 rounded-xl border-2 border-dashed border-border mb-4 transition-colors">
+                        <Upload className="w-10 h-10 text-muted-foreground/50" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground mb-1">No project loaded</p>
                       <p className="text-xs text-muted-foreground text-center mb-4">
-                        Upload a React + Backend project folder
+                        Drag & drop a folder or click below
                       </p>
                       <button
                         onClick={handleUploadClick}
-                        className="px-4 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                        className="px-4 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
                       >
                         Upload Project
                       </button>
+                      <p className="text-[10px] text-muted-foreground mt-3">
+                        Supports React + Node.js projects
+                      </p>
                     </div>
                   )}
-                </>
+                </div>
               )}
               {activeView === 'search' && <SearchPanel onResultClick={handleFileSelect} />}
               {activeView === 'smells' && <SmellsPanel hasResults={hasResults} />}
